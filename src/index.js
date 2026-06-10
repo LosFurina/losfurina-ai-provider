@@ -151,12 +151,16 @@ async function proxyRequest(request, config, env, ctx) {
 }
 
 async function serveDashboard(env) {
+  const config = getConfig(env);
+  const apiToken = config.workerApiKey;
+
   // Inline the HTML for zero-dependency deployment
   const html = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="api-token" content="${apiToken}">
   <title>LosFurina AI Provider - 日志看板</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -221,13 +225,17 @@ async function serveDashboard(env) {
     </table>
   </div>
   <script>
+    const API_TOKEN = document.querySelector('meta[name="api-token"]').getAttribute('content');
+
     async function refresh() {
       const hours = document.getElementById('hours').value;
       document.getElementById('refresh-time').textContent = '刷新中...';
 
+      const headers = { 'Authorization': 'Bearer ' + API_TOKEN };
+
       try {
         // Fetch stats
-        const statsRes = await fetch('/api/logs/stats?hours=' + hours);
+        const statsRes = await fetch('/api/logs/stats?hours=' + hours, { headers });
         const stats = await statsRes.json();
 
         const statsGrid = document.getElementById('stats');
@@ -240,7 +248,7 @@ async function serveDashboard(env) {
         }
 
         // Fetch logs
-        const logsRes = await fetch('/api/logs?hours=' + hours);
+        const logsRes = await fetch('/api/logs?hours=' + hours, { headers });
         const logs = await logsRes.json();
 
         const tbody = document.getElementById('logs-body');
