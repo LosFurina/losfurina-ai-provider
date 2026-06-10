@@ -2,6 +2,7 @@ import { getConfig } from './config.js';
 import { authenticate, unauthorizedResponse } from './auth.js';
 import { handleProxy } from './routes/proxy.js';
 import { handleLogsApi } from './routes/api-logs.js';
+import { handleProvidersApi } from './routes/api-providers.js';
 import { handleModelsList } from './routes/models.js';
 import { probeAllProviders, purgeOldHealthLogs } from './lib/healthcheck.js';
 
@@ -26,6 +27,10 @@ export default {
 
     if (url.pathname.startsWith('/api/logs')) {
       return handleLogsApi(request, env);
+    }
+
+    if (url.pathname.startsWith('/api/providers')) {
+      return handleProvidersApi(request, env, ctx);
     }
 
     if (url.pathname === '/v1/models' && request.method === 'GET') {
