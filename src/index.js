@@ -122,8 +122,12 @@ async function proxyRequest(request, config, env, ctx) {
 
     // Buffer for Telegram notification
     const flushFn = async (entries) => {
-      const message = formatBatchLog(entries);
-      await sendTelegramMessage(config, message);
+      try {
+        const message = formatBatchLog(entries);
+        await sendTelegramMessage(config, message);
+      } catch (err) {
+        console.error('Telegram flush error:', err.message);
+      }
     };
     logBuffer.push(logEntry, flushFn);
 
