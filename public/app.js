@@ -6,6 +6,7 @@ import { renderOverview } from '/pages/overview.js';
 import { renderAnalytics } from '/pages/analytics.js';
 import { renderHealth } from '/pages/health.js';
 import { renderPlayground } from '/pages/playground.js';
+import { renderSettings } from '/pages/settings.js';
 
 if (!getToken()) {
   window.location.href = '/login.html';
@@ -27,5 +28,6 @@ registerRoute('/logs', (container) => renderLogs(container));
 registerRoute('/analytics', (container) => renderAnalytics(container));
 registerRoute('/health', (container) => renderHealth(container));
 registerRoute('/playground', (container) => renderPlayground(container));
+registerRoute('/settings', (container) => renderSettings(container));
 
 startRouter(document.getElementById('main'));
