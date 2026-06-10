@@ -38,3 +38,9 @@ mountAlertBanner();
 
 mountCommandPalette();
 window.__openPalette = openPalette;
+
+window.addEventListener('unhandledrejection', (e) => {
+  if (e.reason?.message?.startsWith('HTTP')) return; // already toasted
+  console.error('unhandled:', e.reason);
+  import('/components/toast.js').then(m => m.showToast('未知错误：' + (e.reason?.message || 'unknown'), { type: 'error' }));
+});

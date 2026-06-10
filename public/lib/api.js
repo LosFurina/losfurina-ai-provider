@@ -1,5 +1,7 @@
 const TOKEN_KEY = 'api_token';
 
+import { showToast } from '/components/toast.js';
+
 export function getToken() { return sessionStorage.getItem(TOKEN_KEY); }
 export function setToken(t) { sessionStorage.setItem(TOKEN_KEY, t); }
 export function clearToken() { sessionStorage.removeItem(TOKEN_KEY); }
@@ -25,6 +27,7 @@ export async function api(path, opts = {}) {
   }
   if (!res.ok) {
     const body = await res.text();
+    showToast(`API ${res.status}: ${body.slice(0, 120)}`, { type: 'error' });
     throw new Error(`HTTP ${res.status}: ${body}`);
   }
   return res.json();
