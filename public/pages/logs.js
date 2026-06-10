@@ -4,7 +4,7 @@ import { renderJsonViewer } from '/components/json-viewer.js';
 import { openSidePanel } from '/components/side-panel.js';
 
 const state = {
-  filters: { hours: 24, search: '', models: [], status: '', minDuration: null, maxDuration: null, minCost: null, maxCost: null },
+  filters: { hours: 24, search: '', models: [], status: '', minDuration: null, maxDuration: null, minCost: null, maxCost: null, providerId: null },
   rows: [],
   lastFetch: 0,
   pollTimer: null,
@@ -80,6 +80,7 @@ function renderFilterBar(el) {
       <option value="4xx">4xx 客户端错误</option>
       <option value="5xx">5xx 服务端错误</option>
     </select>
+    <select class="filter-chip" id="provider-filter"><option value="">所有 Provider</option></select>
     <button class="filter-chip" id="save-view">⭐ 保存视图</button>
     <select class="filter-chip" id="load-view">
       <option value="">已保存视图 ▾</option>
@@ -88,6 +89,15 @@ function renderFilterBar(el) {
   el.querySelector('#search').oninput = (e) => { state.filters.search = e.target.value; debounceFetch(); };
   el.querySelector('#hours').onchange = (e) => { state.filters.hours = parseInt(e.target.value, 10); doFetch(); };
   el.querySelector('#status').onchange = (e) => { state.filters.status = e.target.value; doFetch(); };
+  const provSel = el.querySelector('#provider-filter');
+  import('/lib/api.js').then(({ api }) => api('/api/providers')).then(list => {
+    provSel.innerHTML = '<option value="">所有 Provider</option>' + list.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    if (state.filters.providerId != null) provSel.value = String(state.filters.providerId);
+  }).catch(() => {});
+  provSel.onchange = (e) => {
+    state.filters.providerId = e.target.value ? parseInt(e.target.value, 10) : null;
+    doFetch();
+  };
   el.querySelector('#save-view').onclick = saveCurrentView;
   populateSavedViews(el.querySelector('#load-view'));
   el.querySelector('#load-view').onchange = (e) => loadSavedView(e.target.value);
@@ -116,6 +126,7 @@ async function fetchAndRender(listEl, updateEl) {
   if (f.maxDuration != null) params.set('max_duration', f.maxDuration);
   if (f.minCost != null) params.set('min_cost', f.minCost);
   if (f.maxCost != null) params.set('max_cost', f.maxCost);
+  if (f.providerId != null) params.set('provider_id', f.providerId);
 
   try {
     const rows = await api(`/api/logs?${params.toString()}`);

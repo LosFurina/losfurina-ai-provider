@@ -64,6 +64,7 @@ export async function handleLogsApi(request, env) {
       minCost: numParam(url, 'min_cost'),
       maxCost: numParam(url, 'max_cost'),
       search: url.searchParams.get('search') || undefined,
+      providerId: url.searchParams.has('provider_id') ? parseInt(url.searchParams.get('provider_id'), 10) : undefined,
     };
     const logs = await queryLogs(env.DB, opts);
     return jsonResponse(logs);

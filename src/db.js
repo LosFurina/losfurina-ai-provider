@@ -29,6 +29,7 @@ export async function queryLogs(db, opts = {}) {
     minCost,
     maxCost,
     search,
+    providerId,
   } = opts;
 
   const cutoff = new Date(Date.now() - hours * 3600 * 1000).toISOString();
@@ -50,6 +51,10 @@ export async function queryLogs(db, opts = {}) {
     where.push('(request_body LIKE ? OR response_body LIKE ?)');
     const pat = `%${search.replace(/[%_]/g, '\\$&')}%`;
     args.push(pat, pat);
+  }
+  if (providerId != null) {
+    where.push('provider_id = ?');
+    args.push(providerId);
   }
   if (cursor) { where.push('id < ?'); args.push(cursor); }
 
