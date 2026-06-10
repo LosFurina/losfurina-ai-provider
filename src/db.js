@@ -6,12 +6,51 @@ export async function insertLog(db, logEntry) {
   ).bind(timestamp, model, method, path, status, durationMs, promptTokens, completionTokens, totalTokens, requestBody, responseBody).run();
 }
 
-export async function queryLogs(db, { hours = 24, limit = 50, offset = 0 } = {}) {
+export async function queryLogs(db, opts = {}) {
+  const {
+    hours = 24,
+    limit = 100,
+    cursor,
+    models,
+    statusBucket,
+    minDuration,
+    maxDuration,
+    minCost,
+    maxCost,
+    search,
+  } = opts;
+
   const cutoff = new Date(Date.now() - hours * 3600 * 1000).toISOString();
-  const { results } = await db.prepare(
-    `SELECT * FROM logs WHERE timestamp >= ? ORDER BY timestamp DESC LIMIT ? OFFSET ?`
-  ).bind(cutoff, limit, offset).all();
+  const where = ['timestamp >= ?'];
+  const args = [cutoff];
+
+  if (Array.isArray(models) && models.length) {
+    where.push(`model IN (${models.map(() => '?').join(',')})`);
+    args.push(...models);
+  }
+  if (statusBucket === '2xx') { where.push('status BETWEEN 200 AND 299'); }
+  if (statusBucket === '4xx') { where.push('status BETWEEN 400 AND 499'); }
+  if (statusBucket === '5xx') { where.push('status BETWEEN 500 AND 599'); }
+  if (typeof minDuration === 'number') { where.push('duration_ms >= ?'); args.push(minDuration); }
+  if (typeof maxDuration === 'number') { where.push('duration_ms <= ?'); args.push(maxDuration); }
+  if (typeof minCost === 'number') { where.push('cost_usd >= ?'); args.push(minCost); }
+  if (typeof maxCost === 'number') { where.push('cost_usd <= ?'); args.push(maxCost); }
+  if (search) {
+    where.push('(request_body LIKE ? OR response_body LIKE ?)');
+    const pat = `%${search.replace(/[%_]/g, '\\$&')}%`;
+    args.push(pat, pat);
+  }
+  if (cursor) { where.push('id < ?'); args.push(cursor); }
+
+  const sql = `SELECT * FROM logs WHERE ${where.join(' AND ')} ORDER BY id DESC LIMIT ?`;
+  args.push(limit);
+  const { results } = await db.prepare(sql).bind(...args).all();
   return results;
+}
+
+export async function queryLogById(db, id) {
+  const row = await db.prepare('SELECT * FROM logs WHERE id = ?').bind(id).first();
+  return row || null;
 }
 
 export async function queryStats(db, { hours = 24 } = {}) {
