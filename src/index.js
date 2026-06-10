@@ -22,14 +22,23 @@ export default {
     }
 
     // Auth check for all other routes
-    const auth = authenticate(request, config);
+    // Support ?token= query param for browser access
+    let authRequest = request;
+    const queryToken = url.searchParams.get('token');
+    if (queryToken && request.method === 'GET') {
+      authRequest = new Request(request.url, {
+        headers: { 'Authorization': `Bearer ${queryToken}` },
+      });
+    }
+    const auth = authenticate(authRequest, config);
     if (!auth.ok) {
       return unauthorizedResponse();
     }
 
     // Route handling
     if (url.pathname === '/' || url.pathname === '/dashboard') {
-      return serveDashboard(env);
+      const effectiveToken = queryToken || config.workerApiKey;
+      return serveDashboard(env, effectiveToken);
     }
 
     if (url.pathname === '/api/logs' || url.pathname === '/api/logs/stats') {
@@ -151,10 +160,7 @@ async function proxyRequest(request, config, env, ctx) {
   }
 }
 
-async function serveDashboard(env) {
-  const config = getConfig(env);
-  const apiToken = config.workerApiKey;
-
+async function serveDashboard(env, apiToken) {
   // Inline the HTML for zero-dependency deployment
   const html = `<!DOCTYPE html>
 <html lang="zh-CN">
