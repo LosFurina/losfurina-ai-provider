@@ -1,16 +1,20 @@
 {
   "name": "losfurina-ai-provider",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:create": "wrangler d1 create losfurina-logs",
     "db:migrate": "wrangler d1 execute losfurina-logs --file=./schema.sql",
     "db:local": "wrangler d1 execute losfurina-logs --local --file=./schema.sql"
   },
   "devDependencies": {
-    "wrangler": "^4.0.0"
+    "wrangler": "^4.0.0",
+    "vitest": "^2.0.0",
+    "@cloudflare/vitest-pool-workers": "^0.5.0"
   }
 }
