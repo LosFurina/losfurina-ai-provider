@@ -107,3 +107,51 @@ export async function queryStats(db, { hours = 24 } = {}) {
   ).bind(cutoff).all();
   return results;
 }
+
+export async function queryTimeseries(db, { hours = 24, granularity = 'hour', metric = 'count', breakdown } = {}) {
+  const now = Date.now();
+  const cutoff = new Date(now - hours * 3600 * 1000).toISOString();
+  const bucketSeconds = granularity === 'hour' ? 3600 : 86400;
+  const bucketFmt = granularity === 'hour' ? '%Y-%m-%dT%H:00:00Z' : '%Y-%m-%dT00:00:00Z';
+
+  const metricSql = {
+    count: 'COUNT(*)',
+    cost: 'COALESCE(SUM(cost_usd), 0)',
+    tokens: 'COALESCE(SUM(total_tokens), 0)',
+    latency_avg: 'COALESCE(AVG(duration_ms), 0)',
+  }[metric] || 'COUNT(*)';
+
+  const groupCol = breakdown === 'model' ? ', model' : '';
+  const selectCols = breakdown === 'model' ? ', model' : '';
+
+  const { results } = await db.prepare(
+    `SELECT strftime(?, timestamp) AS ts, ${metricSql} AS value${selectCols}
+     FROM logs
+     WHERE timestamp >= ?
+     GROUP BY ts${groupCol}
+     ORDER BY ts ASC`
+  ).bind(bucketFmt, cutoff).all();
+
+  // Build full bucket list (fill missing with 0)
+  const bucketsMap = new Map();
+  const bucketCount = Math.ceil(hours / (bucketSeconds / 3600));
+  for (let i = bucketCount - 1; i >= 0; i--) {
+    const t = new Date(now - i * bucketSeconds * 1000);
+    if (granularity === 'hour') t.setMinutes(0, 0, 0);
+    else t.setHours(0, 0, 0, 0);
+    const key = t.toISOString().replace(/\.\d{3}Z$/, 'Z');
+    bucketsMap.set(key, { ts: key, value: 0, breakdown: breakdown ? {} : undefined });
+  }
+
+  for (const row of results) {
+    const key = row.ts;
+    if (!bucketsMap.has(key)) bucketsMap.set(key, { ts: key, value: 0, breakdown: breakdown ? {} : undefined });
+    const b = bucketsMap.get(key);
+    b.value += row.value;
+    if (breakdown === 'model' && row.model) {
+      b.breakdown[row.model] = (b.breakdown[row.model] || 0) + row.value;
+    }
+  }
+
+  return { buckets: [...bucketsMap.values()].sort((a, b) => a.ts.localeCompare(b.ts)) };
+}

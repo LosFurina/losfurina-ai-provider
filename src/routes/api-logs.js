@@ -1,4 +1,4 @@
-import { queryLogs, queryStats, queryLogById, queryKpis } from '../db.js';
+import { queryLogs, queryStats, queryLogById, queryKpis, queryTimeseries } from '../db.js';
 
 export async function handleLogsApi(request, env) {
   const url = new URL(request.url);
@@ -18,6 +18,16 @@ export async function handleLogsApi(request, env) {
       const includePrevious = url.searchParams.get('compare') === 'true';
       const kpis = await queryKpis(env.DB, { hours, includePrevious });
       return jsonResponse(kpis);
+    }
+
+    if (url.pathname === '/api/logs/timeseries') {
+      const ts = await queryTimeseries(env.DB, {
+        hours,
+        granularity: url.searchParams.get('granularity') || 'hour',
+        metric: url.searchParams.get('metric') || 'count',
+        breakdown: url.searchParams.get('breakdown') || undefined,
+      });
+      return jsonResponse(ts);
     }
 
     if (url.pathname === '/api/logs/stats') {
