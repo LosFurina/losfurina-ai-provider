@@ -6,7 +6,7 @@ const NAV = [
   { path: '/overview', icon: '📊', label: 'Overview' },
   { path: '/logs', icon: '📋', label: 'Logs' },
   { path: '/analytics', icon: '📈', label: 'Analytics' },
-  { path: '/playground', icon: '🧪', label: 'Playground', disabled: true },
+  { path: '/playground', icon: '🧪', label: 'Playground' },
   { path: '/health', icon: '💚', label: 'Health' },
 ];
 

@@ -76,7 +76,7 @@ export async function handleProxy(request, config, env, ctx) {
       requestBody,
       responseBody,
       costUsd,
-      source: 'proxy',
+      source: request.headers.get('X-Playground') ? 'playground' : 'proxy',
       providerId: provider.id,
     };
 
