@@ -129,7 +129,7 @@ async function proxyRequest(request, config, env, ctx) {
         console.error('Telegram flush error:', err.message);
       }
     };
-    logBuffer.push(logEntry, flushFn);
+    logBuffer.push(logEntry, flushFn, ctx);
 
     // Return response to client
     return new Response(responseBody, {

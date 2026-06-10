@@ -17,21 +17,29 @@ export class LogBuffer {
     this.timer = null;
   }
 
-  push(logEntry, flushFn) {
+  push(logEntry, flushFn, ctx) {
     this.queue.push(logEntry);
 
     // If queue was empty, start the flush timer
     if (this.queue.length === 1) {
-      this.timer = setTimeout(() => this.flush(flushFn), FLUSH_INTERVAL_MS);
+      this.timer = setTimeout(() => {
+        const promise = this.flush(flushFn);
+        if (promise && ctx) {
+          ctx.waitUntil(promise);
+        }
+      }, FLUSH_INTERVAL_MS);
     }
 
     // Queue is full, flush immediately
     if (this.queue.length >= MAX_SIZE) {
-      this.flush(flushFn);
+      const promise = this.flush(flushFn);
+      if (promise && ctx) {
+        ctx.waitUntil(promise);
+      }
     }
   }
 
-  flush(flushFn) {
+  async flush(flushFn) {
     if (this.queue.length === 0) return;
 
     clearTimeout(this.timer);
@@ -40,6 +48,6 @@ export class LogBuffer {
     const entries = this.queue;
     this.queue = [];
 
-    flushFn(entries);
+    await flushFn(entries);
   }
 }
