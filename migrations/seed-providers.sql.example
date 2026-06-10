@@ -1,0 +1,6 @@
+-- Example: copy this file to seed-providers.sql, fill in real values, then run:
+-- wrangler d1 execute losfurina-logs --file=./migrations/seed-providers.sql
+
+INSERT INTO providers (name, base_url, api_key, priority, enabled, created_at, updated_at) VALUES
+  ('OpenAI Official', 'https://api.openai.com/v1', 'sk-...', 10, 1, datetime('now'), datetime('now')),
+  ('Anthropic Direct', 'https://api.anthropic.com/v1', 'sk-ant-...', 20, 1, datetime('now'), datetime('now'));
