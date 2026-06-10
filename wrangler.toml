@@ -8,10 +8,3 @@ binding = "DB"
 database_name = "losfurina-logs"
 database_id = "c8ca6c63-accb-44af-ba07-42dd9e15a107"
 
-# Environment variables (secrets managed via wrangler secret put)
-[vars]
-# TELEGRAM_BOT_TOKEN = ""    # set via wrangler secret
-# TELEGRAM_CHAT_ID = ""      # set via wrangler secret
-# WORKER_API_KEY = ""        # set via wrangler secret
-# TARGET_URL = ""            # set via wrangler secret
-# TARGET_API_KEY = ""        # set via wrangler secret
