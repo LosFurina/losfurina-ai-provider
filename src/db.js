@@ -53,6 +53,43 @@ export async function queryLogById(db, id) {
   return row || null;
 }
 
+export async function queryKpis(db, { hours = 24, includePrevious = false } = {}) {
+  const now = Date.now();
+  const cutoff = new Date(now - hours * 3600 * 1000).toISOString();
+  const current = await aggregateWindow(db, cutoff, new Date(now).toISOString());
+
+  if (!includePrevious) return current;
+
+  const prevStart = new Date(now - hours * 2 * 3600 * 1000).toISOString();
+  const prevEnd = cutoff;
+  const previous = await aggregateWindow(db, prevStart, prevEnd);
+  return { ...current, previous };
+}
+
+async function aggregateWindow(db, startIso, endIso) {
+  const row = await db.prepare(
+    `SELECT
+       COUNT(*)                                  AS request_count,
+       SUM(CASE WHEN status >= 400 THEN 1 ELSE 0 END) AS error_count,
+       COALESCE(SUM(total_tokens), 0)            AS total_tokens,
+       COALESCE(SUM(cost_usd), 0)                AS total_cost,
+       COALESCE(AVG(duration_ms), 0)             AS avg_latency
+     FROM logs
+     WHERE timestamp >= ? AND timestamp < ?`
+  ).bind(startIso, endIso).first();
+
+  const rc = row.request_count || 0;
+  const success_rate = rc > 0 ? (rc - (row.error_count || 0)) / rc : 0;
+  return {
+    request_count: rc,
+    error_count: row.error_count || 0,
+    success_rate,
+    total_tokens: row.total_tokens || 0,
+    total_cost: row.total_cost || 0,
+    avg_latency: Math.round(row.avg_latency || 0),
+  };
+}
+
 export async function queryStats(db, { hours = 24 } = {}) {
   const cutoff = new Date(Date.now() - hours * 3600 * 1000).toISOString();
   const { results } = await db.prepare(

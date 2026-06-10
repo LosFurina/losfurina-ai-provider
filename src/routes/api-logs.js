@@ -1,4 +1,4 @@
-import { queryLogs, queryStats, queryLogById } from '../db.js';
+import { queryLogs, queryStats, queryLogById, queryKpis } from '../db.js';
 
 export async function handleLogsApi(request, env) {
   const url = new URL(request.url);
@@ -14,6 +14,12 @@ export async function handleLogsApi(request, env) {
   const hours = parseInt(url.searchParams.get('hours') || '24', 10);
 
   try {
+    if (url.pathname === '/api/logs/kpis') {
+      const includePrevious = url.searchParams.get('compare') === 'true';
+      const kpis = await queryKpis(env.DB, { hours, includePrevious });
+      return jsonResponse(kpis);
+    }
+
     if (url.pathname === '/api/logs/stats') {
       const stats = await queryStats(env.DB, { hours });
       return jsonResponse(stats);
