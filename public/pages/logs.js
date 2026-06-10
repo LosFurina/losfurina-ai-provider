@@ -48,7 +48,6 @@ export function renderLogs(container) {
         // New logs since last fetch — re-fetch full filtered list so user's filters stay consistent
         doFetch();
       }
-      renderAlertBanner(data.alerts);
     } catch (e) { /* silent */ }
   }, 30000);
 }
@@ -202,7 +201,3 @@ function loadSavedView(name) {
   }
 }
 
-function renderAlertBanner(alerts) {
-  // Full implementation in Task 9 (global alert banner).
-  // Stub for now: no-op.
-}
