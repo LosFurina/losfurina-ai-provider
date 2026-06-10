@@ -1,9 +1,20 @@
 export async function insertLog(db, logEntry) {
-  const { timestamp, model, method, path, status, durationMs, promptTokens, completionTokens, totalTokens, requestBody, responseBody } = logEntry;
+  const {
+    timestamp, model, method, path, status, durationMs,
+    promptTokens, completionTokens, totalTokens,
+    requestBody, responseBody,
+    costUsd = 0, source = 'proxy', providerId = null,
+  } = logEntry;
   await db.prepare(
-    `INSERT INTO logs (timestamp, model, method, path, status, duration_ms, prompt_tokens, completion_tokens, total_tokens, request_body, response_body)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(timestamp, model, method, path, status, durationMs, promptTokens, completionTokens, totalTokens, requestBody, responseBody).run();
+    `INSERT INTO logs (timestamp, model, method, path, status, duration_ms,
+                       prompt_tokens, completion_tokens, total_tokens,
+                       request_body, response_body, cost_usd, source, provider_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    timestamp, model, method, path, status, durationMs,
+    promptTokens, completionTokens, totalTokens,
+    requestBody, responseBody, costUsd, source, providerId
+  ).run();
 }
 
 export async function queryLogs(db, opts = {}) {
