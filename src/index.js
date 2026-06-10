@@ -322,7 +322,7 @@ function serveDashboard() {
 
           const detailRow = document.createElement('tr');
           detailRow.style.display = 'none';
-          detailRow.innerHTML = \`<td colspan="8" style="background:#0f172a;padding:16px;"><div style="border:1px solid #334155;border-radius:8px;padding:12px;margin-bottom:8px;"><div style="color:#94a3b8;font-size:0.75rem;margin-bottom:4px;">📥 请求 (Prompt)</div><pre style="white-space:pre-wrap;word-break:break-word;margin:0;font-size:0.8rem;color:#e2e8f0;max-height:200px;overflow-y:auto;">\${escHtml(row.request_summary || '(空)')}</pre></div><div style="border:1px solid #334155;border-radius:8px;padding:12px;"><div style="color:#94a3b8;font-size:0.75rem;margin-bottom:4px;">📤 响应 (Response)</div><pre style="white-space:pre-wrap;word-break:break-word;margin:0;font-size:0.8rem;color:#e2e8f0;max-height:200px;overflow-y:auto;">\${escHtml(row.response_summary || '(空)')}</pre></div></td>\`;
+          detailRow.innerHTML = \`<td colspan="8" style="background:#0f172a;padding:16px;"><div style="border:1px solid #334155;border-radius:8px;padding:12px;margin-bottom:8px;"><div style="color:#94a3b8;font-size:0.75rem;margin-bottom:4px;">📥 请求 (Prompt)</div><pre style="white-space:pre-wrap;word-break:break-word;margin:0;font-size:0.8rem;color:#e2e8f0;max-height:200px;overflow-y:auto;">\${prettyPrint(row.request_summary)}</pre></div><div style="border:1px solid #334155;border-radius:8px;padding:12px;"><div style="color:#94a3b8;font-size:0.75rem;margin-bottom:4px;">📤 响应 (Response)</div><pre style="white-space:pre-wrap;word-break:break-word;margin:0;font-size:0.8rem;color:#e2e8f0;max-height:200px;overflow-y:auto;">\${prettyPrint(row.response_summary)}</pre></div></td>\`;
 
           tr.addEventListener('click', () => {
             detailRow.style.display = detailRow.style.display === 'none' ? 'table-row' : 'none';
@@ -336,6 +336,15 @@ function serveDashboard() {
       } catch (err) {
         document.getElementById('logs-body').innerHTML = '<tr><td colspan="8" class="error">加载失败: ' + err.message + '</td></tr>';
       }
+    }
+
+    function prettyPrint(str) {
+      if (!str) return escHtml('(空)');
+      try {
+        const parsed = JSON.parse(str);
+        return escHtml(JSON.stringify(parsed, null, 2));
+      } catch {}
+      return escHtml(str);
     }
 
     function escHtml(str) {
