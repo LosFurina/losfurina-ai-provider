@@ -21,26 +21,23 @@ export default {
       });
     }
 
-    // Auth check for all other routes
-    // Support ?token= query param for browser access
-    let authRequest = request;
-    const queryToken = url.searchParams.get('token');
-    if (queryToken && request.method === 'GET') {
-      authRequest = new Request(request.url, {
-        headers: { 'Authorization': `Bearer ${queryToken}` },
-      });
+    // Login page — no auth required
+    if (url.pathname === '/login') {
+      return serveLoginPage();
     }
-    const auth = authenticate(authRequest, config);
+
+    // Dashboard page — no auth required (JS handles auth via sessionStorage)
+    if (url.pathname === '/' || url.pathname === '/dashboard') {
+      return serveDashboard();
+    }
+
+    // Auth check for all other routes (API, proxy, etc.)
+    const auth = authenticate(request, config);
     if (!auth.ok) {
       return unauthorizedResponse();
     }
 
-    // Route handling
-    if (url.pathname === '/' || url.pathname === '/dashboard') {
-      const effectiveToken = queryToken || config.workerApiKey;
-      return serveDashboard(env, effectiveToken);
-    }
-
+    // API routes
     if (url.pathname === '/api/logs' || url.pathname === '/api/logs/stats') {
       return serveLogsApi(request, env);
     }
@@ -73,7 +70,6 @@ async function proxyRequest(request, config, env, ctx) {
   const startTime = Date.now();
   const requestBody = await request.clone().text();
 
-  // Read model from request body (for POST requests)
   let model = 'unknown';
   try {
     if (requestBody) {
@@ -82,7 +78,6 @@ async function proxyRequest(request, config, env, ctx) {
     }
   } catch {}
 
-  // Forward the request to target
   try {
     const targetUrl = new URL(request.url).pathname;
     const targetResponse = await fetch(new URL(targetUrl, config.targetUrl).toString(), {
@@ -94,12 +89,10 @@ async function proxyRequest(request, config, env, ctx) {
       body: request.method === 'GET' ? undefined : requestBody,
     });
 
-    // Clone response to read body for logging
     const responseClone = targetResponse.clone();
     const responseBody = await responseClone.text();
     const durationMs = Date.now() - startTime;
 
-    // Extract token usage
     let promptTokens = 0, completionTokens = 0, totalTokens = 0;
     try {
       const parsed = JSON.parse(responseBody);
@@ -110,7 +103,6 @@ async function proxyRequest(request, config, env, ctx) {
       }
     } catch {}
 
-    // Build log entry
     const logEntry = {
       timestamp: new Date().toISOString(),
       model,
@@ -125,12 +117,10 @@ async function proxyRequest(request, config, env, ctx) {
       responseSummary: summarizeBody(responseBody),
     };
 
-    // Write to D1
     ctx.waitUntil(insertLog(env.DB, logEntry).catch(err => {
       console.error('D1 insert error:', err.message);
     }));
 
-    // Buffer for Telegram notification
     const flushFn = async (entries) => {
       try {
         const message = formatBatchLog(entries);
@@ -141,13 +131,10 @@ async function proxyRequest(request, config, env, ctx) {
     };
     logBuffer.push(logEntry, flushFn, ctx);
 
-    // Return response to client
     return new Response(responseBody, {
       status: targetResponse.status,
       statusText: targetResponse.statusText,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {
     const durationMs = Date.now() - startTime;
@@ -160,14 +147,66 @@ async function proxyRequest(request, config, env, ctx) {
   }
 }
 
-async function serveDashboard(env, apiToken) {
-  // Inline the HTML for zero-dependency deployment
+function serveLoginPage() {
   const html = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="api-token" content="${apiToken}">
+  <title>LosFurina - 登录</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .login-box { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 40px; width: 360px; }
+    h1 { font-size: 1.25rem; color: #38bdf8; margin-bottom: 8px; text-align: center; }
+    p { font-size: 0.875rem; color: #94a3b8; margin-bottom: 24px; text-align: center; }
+    input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 1rem; margin-bottom: 16px; }
+    input:focus { outline: none; border-color: #38bdf8; }
+    button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #2563eb; color: white; font-size: 1rem; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+    .error { color: #fca5a5; font-size: 0.875rem; text-align: center; margin-top: 12px; display: none; }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <h1>📊 LosFurina AI Provider</h1>
+    <p>请输入 API Key 登录查看日志</p>
+    <input type="password" id="password" placeholder="API Key" autofocus>
+    <button onclick="login()">登录</button>
+    <div class="error" id="error">密钥错误，请重试</div>
+  </div>
+  <script>
+    async function login() {
+      const pwd = document.getElementById('password').value;
+      if (!pwd) return;
+      try {
+        const res = await fetch('/api/logs?hours=1', {
+          headers: { 'Authorization': 'Bearer ' + pwd }
+        });
+        if (!res.ok) throw new Error('Unauthorized');
+        sessionStorage.setItem('api_token', pwd);
+        window.location.href = '/';
+      } catch (e) {
+        document.getElementById('error').style.display = 'block';
+      }
+    }
+    document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+  </script>
+</body>
+</html>`;
+
+  return new Response(html, {
+    status: 200,
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  });
+}
+
+function serveDashboard() {
+  const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LosFurina AI Provider - 日志看板</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -193,11 +232,18 @@ async function serveDashboard(env, apiToken) {
     .model-tag { background: #1e3a5f; color: #93c5fd; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
     .loading { text-align: center; padding: 40px; color: #64748b; }
     .error { color: #fca5a5; padding: 20px; text-align: center; }
+    .logout-btn { font-size: 0.75rem; color: #94a3b8; cursor: pointer; margin-left: auto; }
+    .logout-btn:hover { color: #fca5a5; }
+    .header-bar { display: flex; align-items: center; margin-bottom: 20px; }
+    .header-bar h1 { margin-bottom: 0; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>📊 LosFurina AI Provider 日志看板</h1>
+    <div class="header-bar">
+      <h1>📊 LosFurina AI Provider 日志看板</h1>
+      <span class="logout-btn" onclick="logout()" style="margin-left:auto;">退出登录</span>
+    </div>
 
     <div class="filters">
       <label for="hours">时间范围:</label>
@@ -231,7 +277,10 @@ async function serveDashboard(env, apiToken) {
     </table>
   </div>
   <script>
-    const API_TOKEN = document.querySelector('meta[name="api-token"]').getAttribute('content');
+    const API_TOKEN = sessionStorage.getItem('api_token');
+    if (!API_TOKEN) {
+      window.location.href = '/login';
+    }
 
     async function refresh() {
       const hours = document.getElementById('hours').value;
@@ -240,8 +289,8 @@ async function serveDashboard(env, apiToken) {
       const headers = { 'Authorization': 'Bearer ' + API_TOKEN };
 
       try {
-        // Fetch stats
         const statsRes = await fetch('/api/logs/stats?hours=' + hours, { headers });
+        if (!statsRes.ok) { sessionStorage.removeItem('api_token'); window.location.href = '/login'; return; }
         const stats = await statsRes.json();
 
         const statsGrid = document.getElementById('stats');
@@ -253,7 +302,6 @@ async function serveDashboard(env, apiToken) {
           statsGrid.appendChild(card);
         }
 
-        // Fetch logs
         const logsRes = await fetch('/api/logs?hours=' + hours, { headers });
         const logs = await logsRes.json();
 
@@ -270,19 +318,16 @@ async function serveDashboard(env, apiToken) {
           tr.style.cursor = 'pointer';
           const time = new Date(row.timestamp).toLocaleTimeString('zh-CN', { hour12: false });
           const statusClass = row.status >= 200 && row.status < 300 ? 'status-ok' : 'status-err';
-          const reqPreview = (row.request_summary || '').slice(0, 80);
-          const resPreview = (row.response_summary || '').slice(0, 80);
-          tr.innerHTML = \`<td>\${time}</td><td><span class="model-tag">\${row.model}</span></td><td><span class="status-badge \${statusClass}">\${row.status}</span></td><td>\${row.duration_ms}ms</td><td>\${row.prompt_tokens}</td><td>\${row.completion_tokens}</td><td>\${row.total_tokens}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">\${reqPreview}</td>\`;
-          
-          // Click to expand details
+          tr.innerHTML = \`<td>\${time}</td><td><span class="model-tag">\${row.model}</span></td><td><span class="status-badge \${statusClass}">\${row.status}</span></td><td>\${row.duration_ms}ms</td><td>\${row.prompt_tokens}</td><td>\${row.completion_tokens}</td><td>\${row.total_tokens}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">\${escHtml((row.request_summary||'').slice(0,80))}</td>\`;
+
           const detailRow = document.createElement('tr');
           detailRow.style.display = 'none';
           detailRow.innerHTML = \`<td colspan="8" style="background:#0f172a;padding:16px;"><div style="border:1px solid #334155;border-radius:8px;padding:12px;margin-bottom:8px;"><div style="color:#94a3b8;font-size:0.75rem;margin-bottom:4px;">📥 请求 (Prompt)</div><pre style="white-space:pre-wrap;word-break:break-word;margin:0;font-size:0.8rem;color:#e2e8f0;max-height:200px;overflow-y:auto;">\${escHtml(row.request_summary || '(空)')}</pre></div><div style="border:1px solid #334155;border-radius:8px;padding:12px;"><div style="color:#94a3b8;font-size:0.75rem;margin-bottom:4px;">📤 响应 (Response)</div><pre style="white-space:pre-wrap;word-break:break-word;margin:0;font-size:0.8rem;color:#e2e8f0;max-height:200px;overflow-y:auto;">\${escHtml(row.response_summary || '(空)')}</pre></div></td>\`;
-          
+
           tr.addEventListener('click', () => {
             detailRow.style.display = detailRow.style.display === 'none' ? 'table-row' : 'none';
           });
-          
+
           tbody.appendChild(tr);
           tbody.appendChild(detailRow);
         }
@@ -297,6 +342,11 @@ async function serveDashboard(env, apiToken) {
       const div = document.createElement('div');
       div.textContent = str;
       return div.innerHTML;
+    }
+
+    function logout() {
+      sessionStorage.removeItem('api_token');
+      window.location.href = '/login';
     }
 
     refresh();
