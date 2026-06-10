@@ -1,0 +1,17 @@
+name = "losfurina-ai-provider"
+main = "src/index.js"
+compatibility_date = "2026-06-10"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "losfurina-logs"
+database_id = "local-dev"
+
+# Environment variables (secrets managed via wrangler secret put)
+[vars]
+# TELEGRAM_BOT_TOKEN = ""    # set via wrangler secret
+# TELEGRAM_CHAT_ID = ""      # set via wrangler secret
+# WORKER_API_KEY = ""        # set via wrangler secret
+# TARGET_URL = ""            # set via wrangler secret
+# TARGET_API_KEY = ""        # set via wrangler secret

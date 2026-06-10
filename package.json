@@ -1,0 +1,15 @@
+{
+  "name": "losfurina-ai-provider",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create losfurina-logs",
+    "db:migrate": "wrangler d1 execute losfurina-logs --file=./schema.sql",
+    "db:local": "wrangler d1 execute losfurina-logs --local --file=./schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
