@@ -12,3 +12,6 @@ not_found_handling = "single-page-application"
 binding = "DB"
 database_name = "losfurina-logs"
 database_id = "c8ca6c63-accb-44af-ba07-42dd9e15a107"
+
+[triggers]
+crons = ["*/5 * * * *"]

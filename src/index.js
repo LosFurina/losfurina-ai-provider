@@ -3,6 +3,7 @@ import { authenticate, unauthorizedResponse } from './auth.js';
 import { handleProxy } from './routes/proxy.js';
 import { handleLogsApi } from './routes/api-logs.js';
 import { handleModelsList } from './routes/models.js';
+import { probeAllProviders, purgeOldHealthLogs } from './lib/healthcheck.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -37,5 +38,13 @@ export default {
 
     // All other paths fall through to Static Assets binding
     return env.ASSETS.fetch(request);
+  },
+  async scheduled(event, env, ctx) {
+    await probeAllProviders(env, ctx);
+    // Purge once per hour (cron fires every 5 min)
+    const minutes = new Date().getUTCMinutes();
+    if (minutes < 5) {
+      await purgeOldHealthLogs(env, 7);
+    }
   },
 };
