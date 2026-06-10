@@ -1,4 +1,6 @@
 import { invalidateCache } from './router.js';
+import { getConfig } from '../config.js';
+import { processProviderHealthForAlerts } from './alerts.js';
 
 export function judgeStatus(httpStatus, models) {
   if (httpStatus < 200 || httpStatus >= 300) return 'unhealthy';
@@ -51,7 +53,7 @@ export async function probeOne(provider) {
 
 export async function probeAllProviders(env, ctx) {
   const { results: providers } = await env.DB.prepare(
-    `SELECT id, name, base_url, api_key FROM providers WHERE enabled = 1`
+    `SELECT id, name, base_url, api_key, health_status AS previous_status FROM providers WHERE enabled = 1`
   ).all();
   if (!providers.length) return;
 
@@ -91,6 +93,17 @@ export async function probeAllProviders(env, ctx) {
   }
   await env.DB.batch(stmts);
   invalidateCache();
+
+  // Fire alerts when status transitions to unhealthy
+  const config = getConfig(env);
+  for (const { provider, probe } of results) {
+    if (provider.previous_status !== 'unhealthy' && probe.status === 'unhealthy') {
+      await processProviderHealthForAlerts(env.DB, config, {
+        providerName: provider.name,
+        status: 'unhealthy',
+      });
+    }
+  }
 }
 
 export async function purgeOldHealthLogs(env, daysToKeep = 7) {

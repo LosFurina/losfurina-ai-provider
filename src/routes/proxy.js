@@ -5,6 +5,7 @@ import { insertLog } from '../db.js';
 import { formatBatchLog } from '../logger.js';
 import { sendTelegramMessage } from '../telegram.js';
 import { LogBuffer } from '../buffer.js';
+import { processLogForAlerts } from '../lib/alerts.js';
 
 const logBuffer = new LogBuffer();
 
@@ -79,9 +80,11 @@ export async function handleProxy(request, config, env, ctx) {
       providerId: provider.id,
     };
 
-    ctx.waitUntil(insertLog(env.DB, logEntry).catch(err => {
-      console.error('D1 insert error:', err.message);
-    }));
+    ctx.waitUntil(
+      insertLog(env.DB, logEntry)
+        .then(() => processLogForAlerts(env.DB, config, logEntry))
+        .catch(err => console.error('alert chain error:', err.message))
+    );
 
     const flushFn = async (entries) => {
       try { await sendTelegramMessage(config, formatBatchLog(entries)); }
