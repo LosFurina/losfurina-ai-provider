@@ -14,6 +14,24 @@ export async function handleLogsApi(request, env) {
   const hours = parseInt(url.searchParams.get('hours') || '24', 10);
 
   try {
+    if (url.pathname === '/api/poll') {
+      const since = url.searchParams.get('since');
+      const sinceClause = since ? 'AND timestamp > ?' : '';
+      const sinceArgs = since ? [since] : [];
+      const { results: newLogs } = await env.DB.prepare(
+        `SELECT * FROM logs WHERE 1=1 ${sinceClause} ORDER BY id DESC LIMIT 50`
+      ).bind(...sinceArgs).all();
+
+      const { results: alerts } = await env.DB.prepare(
+        `SELECT t.id, t.triggered_at, t.actual_value, t.context, r.name AS rule_name, r.metric, r.action
+         FROM alert_triggers t LEFT JOIN alert_rules r ON r.id = t.rule_id
+         WHERE t.acknowledged = 0 AND (r.action = 'banner' OR r.action = 'both')
+         ORDER BY t.triggered_at DESC LIMIT 10`
+      ).all();
+
+      return jsonResponse({ logs: newLogs, alerts, server_time: new Date().toISOString() });
+    }
+
     if (url.pathname === '/api/logs/kpis') {
       const includePrevious = url.searchParams.get('compare') === 'true';
       const kpis = await queryKpis(env.DB, { hours, includePrevious });

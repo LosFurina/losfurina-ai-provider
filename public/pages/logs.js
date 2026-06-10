@@ -39,8 +39,17 @@ export function renderLogs(container) {
 
   // Polling every 30s
   if (state.pollTimer) clearInterval(state.pollTimer);
-  state.pollTimer = setInterval(() => {
-    fetchAndRender(container.querySelector('#logs-list'), container.querySelector('#last-update'));
+  state.pollTimer = setInterval(async () => {
+    try {
+      const sinceIso = state.lastFetch ? new Date(state.lastFetch).toISOString() : '';
+      const qs = sinceIso ? `?since=${encodeURIComponent(sinceIso)}` : '';
+      const data = await api('/api/poll' + qs);
+      if (data.logs && data.logs.length) {
+        // New logs since last fetch — re-fetch full filtered list so user's filters stay consistent
+        doFetch();
+      }
+      renderAlertBanner(data.alerts);
+    } catch (e) { /* silent */ }
   }, 30000);
 }
 
@@ -191,4 +200,9 @@ function loadSavedView(name) {
     document.getElementById('status').value = state.filters.status;
     doFetch();
   }
+}
+
+function renderAlertBanner(alerts) {
+  // Full implementation in Task 9 (global alert banner).
+  // Stub for now: no-op.
 }
