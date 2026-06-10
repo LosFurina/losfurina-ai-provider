@@ -88,9 +88,7 @@ function renderFilterBar(el) {
     </select>
     <select class="filter-chip" id="provider-filter"><option value="">所有 Provider</option></select>
     <button class="filter-chip" id="save-view">⭐ 保存视图</button>
-    <select class="filter-chip" id="load-view">
-      <option value="">已保存视图 ▾</option>
-    </select>
+    <div id="saved-views" style="display:flex;gap:6px;flex-wrap:wrap"></div>
   `;
   el.querySelector('#search').oninput = (e) => { state.filters.search = e.target.value; debounceFetch(); };
   el.querySelector('#hours').onchange = (e) => { state.filters.hours = parseInt(e.target.value, 10); doFetch(); };
@@ -105,8 +103,7 @@ function renderFilterBar(el) {
     doFetch();
   };
   el.querySelector('#save-view').onclick = saveCurrentView;
-  populateSavedViews(el.querySelector('#load-view'));
-  el.querySelector('#load-view').onchange = (e) => loadSavedView(e.target.value);
+  renderSavedViews(el);
 }
 
 let debounceTimer;
@@ -215,15 +212,47 @@ function saveCurrentView() {
   const saved = JSON.parse(localStorage.getItem(VIEWS_KEY) || '{}');
   saved[name] = { ...state.filters };
   localStorage.setItem(VIEWS_KEY, JSON.stringify(saved));
-  populateSavedViews(document.getElementById('load-view'));
+  renderSavedViews(document.getElementById('filter-bar'));
   alert('已保存：' + name);
 }
 
-function populateSavedViews(selectEl) {
-  if (!selectEl) return;
+function renderSavedViews(container) {
   const saved = JSON.parse(localStorage.getItem(VIEWS_KEY) || '{}');
-  selectEl.innerHTML = '<option value="">已保存视图 ▾</option>' +
-    Object.keys(saved).map(k => `<option value="${k}">${k}</option>`).join('');
+  const el = container.querySelector('#saved-views');
+  if (!el) return;
+  const names = Object.keys(saved);
+  if (!names.length) {
+    el.innerHTML = '';
+    return;
+  }
+  el.innerHTML = names.map(name => `
+    <span class="filter-chip" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer" data-view-name="${escapeHtml(name)}">
+      ${escapeHtml(name)}
+      <span style="opacity:0.5;cursor:pointer" data-del-view="${escapeHtml(name)}">×</span>
+    </span>
+  `).join('');
+  el.querySelectorAll('[data-view-name]').forEach(chip => {
+    chip.onclick = (e) => {
+      if (e.target.dataset.delView) return;
+      loadSavedView(chip.dataset.viewName);
+    };
+  });
+  el.querySelectorAll('[data-del-view]').forEach(x => {
+    x.onclick = (e) => {
+      e.stopPropagation();
+      const name = x.dataset.delView;
+      if (!confirm(`删除视图 "${name}"?`)) return;
+      const saved = JSON.parse(localStorage.getItem(VIEWS_KEY) || '{}');
+      delete saved[name];
+      localStorage.setItem(VIEWS_KEY, JSON.stringify(saved));
+      renderSavedViews(container);
+    };
+  });
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function loadSavedView(name) {
