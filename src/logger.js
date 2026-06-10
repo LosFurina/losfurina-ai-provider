@@ -44,18 +44,27 @@ export function formatBatchLog(entries) {
   return entries.map(entry => formatLogEntry(entry)).join('\n\n---\n\n');
 }
 
-export function summarizeBody(text, maxLen = 300) {
+export function summarizeBody(text, maxLen = 2000) {
   if (!text) return '';
-  // Try to parse as JSON and extract content / messages for a meaningful summary
   try {
     const parsed = JSON.parse(text);
+    // Request format: extract messages
     if (parsed.messages && Array.isArray(parsed.messages)) {
-      const lastUserMsg = parsed.messages.filter(m => m.role === 'user').pop();
+      // Return the last user message
+      const lastUserMsg = [...parsed.messages].reverse().find(m => m.role === 'user');
       if (lastUserMsg?.content) {
         const content = typeof lastUserMsg.content === 'string' ? lastUserMsg.content : JSON.stringify(lastUserMsg.content);
         return content.slice(0, maxLen);
       }
+      // Fallback: return all messages as text
+      return parsed.messages.map(m => `${m.role}: ${typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}`).join('\n').slice(0, maxLen);
     }
+    // Response format: extract choices[0].message.content
+    if (parsed.choices && Array.isArray(parsed.choices)) {
+      const content = parsed.choices[0]?.message?.content;
+      if (content) return content.slice(0, maxLen);
+    }
+    // Fallback: content field
     if (parsed.content) {
       const content = typeof parsed.content === 'string' ? parsed.content : JSON.stringify(parsed.content);
       return content.slice(0, maxLen);

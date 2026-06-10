@@ -217,17 +217,16 @@ async function serveDashboard(env, apiToken) {
         <tr>
           <th>时间</th>
           <th>模型</th>
-          <th>方法</th>
-          <th>路径</th>
           <th>状态</th>
           <th>耗时</th>
           <th>Prompt</th>
           <th>Completion</th>
           <th>总计 Tokens</th>
+          <th>内容</th>
         </tr>
       </thead>
       <tbody id="logs-body">
-        <tr><td colspan="9" class="loading">加载中...</td></tr>
+        <tr><td colspan="8" class="loading">加载中...</td></tr>
       </tbody>
     </table>
   </div>
@@ -262,22 +261,42 @@ async function serveDashboard(env, apiToken) {
         tbody.innerHTML = '';
 
         if (logs.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="9" class="loading">暂无数据</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="8" class="loading">暂无数据</td></tr>';
           return;
         }
 
         for (const row of logs) {
           const tr = document.createElement('tr');
+          tr.style.cursor = 'pointer';
           const time = new Date(row.timestamp).toLocaleTimeString('zh-CN', { hour12: false });
           const statusClass = row.status >= 200 && row.status < 300 ? 'status-ok' : 'status-err';
-          tr.innerHTML = \`<td>\${time}</td><td><span class="model-tag">\${row.model}</span></td><td>\${row.method}</td><td>\${row.path}</td><td><span class="status-badge \${statusClass}">\${row.status}</span></td><td>\${row.duration_ms}ms</td><td>\${row.prompt_tokens}</td><td>\${row.completion_tokens}</td><td>\${row.total_tokens}</td>\`;
+          const reqPreview = (row.request_summary || '').slice(0, 80);
+          const resPreview = (row.response_summary || '').slice(0, 80);
+          tr.innerHTML = \`<td>\${time}</td><td><span class="model-tag">\${row.model}</span></td><td><span class="status-badge \${statusClass}">\${row.status}</span></td><td>\${row.duration_ms}ms</td><td>\${row.prompt_tokens}</td><td>\${row.completion_tokens}</td><td>\${row.total_tokens}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">\${reqPreview}</td>\`;
+          
+          // Click to expand details
+          const detailRow = document.createElement('tr');
+          detailRow.style.display = 'none';
+          detailRow.innerHTML = \`<td colspan="8" style="background:#0f172a;padding:16px;"><div style="border:1px solid #334155;border-radius:8px;padding:12px;margin-bottom:8px;"><div style="color:#94a3b8;font-size:0.75rem;margin-bottom:4px;">📥 请求 (Prompt)</div><pre style="white-space:pre-wrap;word-break:break-word;margin:0;font-size:0.8rem;color:#e2e8f0;max-height:200px;overflow-y:auto;">\${escHtml(row.request_summary || '(空)')}</pre></div><div style="border:1px solid #334155;border-radius:8px;padding:12px;"><div style="color:#94a3b8;font-size:0.75rem;margin-bottom:4px;">📤 响应 (Response)</div><pre style="white-space:pre-wrap;word-break:break-word;margin:0;font-size:0.8rem;color:#e2e8f0;max-height:200px;overflow-y:auto;">\${escHtml(row.response_summary || '(空)')}</pre></div></td>\`;
+          
+          tr.addEventListener('click', () => {
+            detailRow.style.display = detailRow.style.display === 'none' ? 'table-row' : 'none';
+          });
+          
           tbody.appendChild(tr);
+          tbody.appendChild(detailRow);
         }
 
         document.getElementById('refresh-time').textContent = '更新于 ' + new Date().toLocaleTimeString('zh-CN');
       } catch (err) {
-        document.getElementById('logs-body').innerHTML = '<tr><td colspan="9" class="error">加载失败: ' + err.message + '</td></tr>';
+        document.getElementById('logs-body').innerHTML = '<tr><td colspan="8" class="error">加载失败: ' + err.message + '</td></tr>';
       }
+    }
+
+    function escHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
     }
 
     refresh();
