@@ -49,6 +49,12 @@ const DDL = [
     model_count  INTEGER,
     error        TEXT
   )`,
+  `CREATE TABLE IF NOT EXISTS pricing (
+    model              TEXT PRIMARY KEY,
+    prompt_per_1k      REAL NOT NULL,
+    completion_per_1k  REAL NOT NULL,
+    updated_at         TEXT NOT NULL
+  )`,
 ];
 
 beforeAll(async () => {

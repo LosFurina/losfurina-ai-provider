@@ -1,5 +1,6 @@
 // src/routes/proxy.js
 import { resolveProvider } from '../lib/router.js';
+import { calculateCost } from '../lib/pricing.js';
 import { insertLog } from '../db.js';
 import { formatBatchLog } from '../logger.js';
 import { sendTelegramMessage } from '../telegram.js';
@@ -59,6 +60,8 @@ export async function handleProxy(request, config, env, ctx) {
       }
     } catch {}
 
+    const costUsd = await calculateCost(env.DB, model, promptTokens, completionTokens);
+
     const logEntry = {
       timestamp: new Date().toISOString(),
       model,
@@ -71,7 +74,7 @@ export async function handleProxy(request, config, env, ctx) {
       totalTokens,
       requestBody,
       responseBody,
-      costUsd: 0, // pricing wired up in Phase 4
+      costUsd,
       source: 'proxy',
       providerId: provider.id,
     };
