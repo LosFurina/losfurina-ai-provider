@@ -9,8 +9,8 @@ CREATE TABLE IF NOT EXISTS logs (
   prompt_tokens      INTEGER DEFAULT 0,
   completion_tokens  INTEGER DEFAULT 0,
   total_tokens       INTEGER DEFAULT 0,
-  request_summary    TEXT,
-  response_summary   TEXT
+  request_body       TEXT,
+  response_body      TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp);

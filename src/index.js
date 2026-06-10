@@ -3,7 +3,7 @@ import { authenticate, unauthorizedResponse } from './auth.js';
 import { insertLog, queryLogs, queryStats } from './db.js';
 import { sendTelegramMessage } from './telegram.js';
 import { LogBuffer } from './buffer.js';
-import { formatBatchLog, summarizeBody } from './logger.js';
+import { formatBatchLog } from './logger.js';
 
 // Global buffer instance per isolate
 const logBuffer = new LogBuffer();
@@ -50,11 +50,7 @@ export default {
       });
     }
 
-    if (request.method === 'POST' && ['/v1/chat/completions', '/v1/completions', '/v1/embeddings'].includes(url.pathname)) {
-      return proxyRequest(request, config, env, ctx);
-    }
-
-    if (request.method === 'GET' && url.pathname === '/v1/models') {
+    if (url.pathname.startsWith('/v1/')) {
       return proxyRequest(request, config, env, ctx);
     }
 
@@ -113,8 +109,8 @@ async function proxyRequest(request, config, env, ctx) {
       promptTokens,
       completionTokens,
       totalTokens,
-      requestSummary: summarizeBody(requestBody),
-      responseSummary: summarizeBody(responseBody),
+      requestBody,
+      responseBody,
     };
 
     ctx.waitUntil(insertLog(env.DB, logEntry).catch(err => {
@@ -318,11 +314,11 @@ function serveDashboard() {
           tr.style.cursor = 'pointer';
           const time = new Date(row.timestamp).toLocaleTimeString('zh-CN', { hour12: false });
           const statusClass = row.status >= 200 && row.status < 300 ? 'status-ok' : 'status-err';
-          tr.innerHTML = \`<td>\${time}</td><td><span class="model-tag">\${row.model}</span></td><td><span class="status-badge \${statusClass}">\${row.status}</span></td><td>\${row.duration_ms}ms</td><td>\${row.prompt_tokens}</td><td>\${row.completion_tokens}</td><td>\${row.total_tokens}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">\${escHtml((row.request_summary||'').slice(0,80))}</td>\`;
+          tr.innerHTML = \`<td>\${time}</td><td><span class="model-tag">\${row.model}</span></td><td><span class="status-badge \${statusClass}">\${row.status}</span></td><td>\${row.duration_ms}ms</td><td>\${row.prompt_tokens}</td><td>\${row.completion_tokens}</td><td>\${row.total_tokens}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">\${escHtml((row.request_body||'').slice(0,80))}</td>\`;
 
           const detailRow = document.createElement('tr');
           detailRow.style.display = 'none';
-          detailRow.innerHTML = \`<td colspan="8" style="background:#0f172a;padding:16px;"><div style="border:1px solid #334155;border-radius:8px;padding:12px;margin-bottom:8px;"><div style="color:#94a3b8;font-size:0.75rem;margin-bottom:4px;">📥 请求 (Prompt)</div><pre style="white-space:pre-wrap;word-break:break-word;margin:0;font-size:0.8rem;color:#e2e8f0;">\${prettyPrint(row.request_summary)}</pre></div><div style="border:1px solid #334155;border-radius:8px;padding:12px;"><div style="color:#94a3b8;font-size:0.75rem;margin-bottom:4px;">📤 响应 (Response)</div><pre style="white-space:pre-wrap;word-break:break-word;margin:0;font-size:0.8rem;color:#e2e8f0;">\${prettyPrint(row.response_summary)}</pre></div></td>\`;
+          detailRow.innerHTML = \`<td colspan="8" style="background:#0f172a;padding:16px;"><div style="border:1px solid #334155;border-radius:8px;padding:12px;margin-bottom:8px;"><div style="color:#94a3b8;font-size:0.75rem;margin-bottom:4px;">📥 请求 (Request)</div><pre style="white-space:pre-wrap;word-break:break-word;margin:0;font-size:0.8rem;color:#e2e8f0;">\${prettyPrint(row.request_body)}</pre></div><div style="border:1px solid #334155;border-radius:8px;padding:12px;"><div style="color:#94a3b8;font-size:0.75rem;margin-bottom:4px;">📤 响应 (Response)</div><pre style="white-space:pre-wrap;word-break:break-word;margin:0;font-size:0.8rem;color:#e2e8f0;">\${prettyPrint(row.response_body)}</pre></div></td>\`;
 
           tr.addEventListener('click', () => {
             detailRow.style.display = detailRow.style.display === 'none' ? 'table-row' : 'none';

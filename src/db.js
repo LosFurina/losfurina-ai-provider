@@ -1,12 +1,9 @@
-/**
- * D1 database operations for log persistence.
- */
 export async function insertLog(db, logEntry) {
-  const { timestamp, model, method, path, status, durationMs, promptTokens, completionTokens, totalTokens, requestSummary, responseSummary } = logEntry;
+  const { timestamp, model, method, path, status, durationMs, promptTokens, completionTokens, totalTokens, requestBody, responseBody } = logEntry;
   await db.prepare(
-    `INSERT INTO logs (timestamp, model, method, path, status, duration_ms, prompt_tokens, completion_tokens, total_tokens, request_summary, response_summary)
+    `INSERT INTO logs (timestamp, model, method, path, status, duration_ms, prompt_tokens, completion_tokens, total_tokens, request_body, response_body)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(timestamp, model, method, path, status, durationMs, promptTokens, completionTokens, totalTokens, requestSummary, responseSummary).run();
+  ).bind(timestamp, model, method, path, status, durationMs, promptTokens, completionTokens, totalTokens, requestBody, responseBody).run();
 }
 
 export async function queryLogs(db, { hours = 24, limit = 50, offset = 0 } = {}) {
