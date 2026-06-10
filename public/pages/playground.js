@@ -16,6 +16,21 @@ const state = {
 
 let availableModels = [];
 
+const HISTORY_KEY = 'playground_history_v1';
+const HISTORY_LIMIT = 10;
+
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
+}
+function saveHistory(items) {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, HISTORY_LIMIT)));
+}
+function pushHistory(entry) {
+  const items = loadHistory();
+  items.unshift(entry);
+  saveHistory(items);
+}
+
 export function renderPlayground(container) {
   container.innerHTML = `
     <div class="page-header">
@@ -35,6 +50,9 @@ export function renderPlayground(container) {
             <input id="pg-temp" type="number" step="0.1" min="0" max="2" value="${state.temperature}" style="width:60px;background:var(--bg-overlay);border:1px solid var(--border-default);color:var(--text-primary);padding:4px 6px;border-radius:4px;margin-left:4px"/>
           </label>
           <button class="filter-chip" id="pg-send" style="margin-left:auto;background:var(--accent-blue);color:white;padding:6px 14px">▶ 发送</button>
+          <select class="filter-chip" id="pg-history" style="margin-left:8px">
+            <option value="">历史 ▾</option>
+          </select>
         </div>
         <div style="flex:1;padding:16px 20px;overflow-y:auto" id="pg-messages"></div>
         <div style="padding:10px 20px;border-top:1px solid var(--border-subtle)">
@@ -83,6 +101,22 @@ function bindEvents(container) {
   container.querySelector('#pg-copy').onclick = () => {
     navigator.clipboard.writeText(JSON.stringify(state.response, null, 2));
   };
+  const histSel = container.querySelector('#pg-history');
+  const items = loadHistory();
+  histSel.innerHTML = '<option value="">历史 ▾</option>' + items.map((h, i) =>
+    `<option value="${i}">${h.model} · ${new Date(h.ts).toLocaleTimeString('zh-CN', { hour12: false })}</option>`
+  ).join('');
+  histSel.onchange = () => {
+    const all = loadHistory();
+    const h = all[parseInt(histSel.value, 10)];
+    if (!h) return;
+    state.model = h.model;
+    state.messages = JSON.parse(JSON.stringify(h.messages));
+    state.response = h.response;
+    container.querySelector('#pg-model').value = h.model;
+    renderMessages();
+    renderResponse();
+  };
 }
 
 function renderMessages() {
@@ -128,6 +162,12 @@ async function send(container) {
     const dt = Date.now() - t0;
     const usage = data.usage || {};
     state.response = data;
+    pushHistory({
+      ts: Date.now(),
+      model: state.model,
+      messages: state.messages.filter(m => m.content.trim()),
+      response: data,
+    });
     document.getElementById('pg-resp-meta').innerHTML = `
       延迟: <span style="color:var(--accent-green)">${dt}ms</span> ·
       Tokens: <span style="color:var(--text-primary)">${usage.prompt_tokens || 0} + ${usage.completion_tokens || 0} = ${usage.total_tokens || 0}</span>
