@@ -75,7 +75,8 @@ async function proxyRequest(request, config, env, ctx) {
 
   // Forward the request to target
   try {
-    const targetResponse = await fetch(config.targetUrl + new URL(request.url).pathname, {
+    const targetUrl = new URL(request.url).pathname;
+    const targetResponse = await fetch(new URL(targetUrl, config.targetUrl).toString(), {
       method: request.method,
       headers: {
         'Content-Type': 'application/json',
@@ -105,7 +106,7 @@ async function proxyRequest(request, config, env, ctx) {
       timestamp: new Date().toISOString(),
       model,
       method: request.method,
-      path: new URL(request.url).pathname,
+      path: targetUrl,
       status: targetResponse.status,
       durationMs,
       promptTokens,
