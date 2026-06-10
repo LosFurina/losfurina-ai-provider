@@ -2,6 +2,7 @@ import { startRouter, registerRoute } from '/lib/router.js';
 import { getToken } from '/lib/api.js';
 import { renderSidebar } from '/components/sidebar.js';
 import { mountAlertBanner } from '/components/alert-banner.js';
+import { mountCommandPalette, openPalette } from '/components/command-palette.js';
 import { renderLogs } from '/pages/logs.js';
 import { renderOverview } from '/pages/overview.js';
 import { renderAnalytics } from '/pages/analytics.js';
@@ -34,3 +35,6 @@ registerRoute('/settings', (container) => renderSettings(container));
 startRouter(document.getElementById('main'));
 
 mountAlertBanner();
+
+mountCommandPalette();
+window.__openPalette = openPalette;

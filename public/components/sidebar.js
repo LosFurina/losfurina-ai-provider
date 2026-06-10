@@ -42,7 +42,9 @@ export function renderSidebar(container) {
     clearToken();
     window.location.href = '/login.html';
   };
-  container.querySelector('#search-trigger').onclick = () => alert('⌘K 在 Phase 5 实现');
+  container.querySelector('#search-trigger').onclick = () => {
+    window.__openPalette && window.__openPalette();
+  };
   window.addEventListener('hashchange', () => renderSidebar(container));
 
   refreshHealthBadge();
