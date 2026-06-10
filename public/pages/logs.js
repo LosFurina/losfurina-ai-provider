@@ -30,7 +30,13 @@ export function renderLogs(container) {
       <div class="log-grid log-header">
         <span>时间</span><span>模型</span><span>状态</span><span>延迟</span><span>Tokens</span><span>费用</span><span>路径</span>
       </div>
-      <div id="logs-list"><div style="padding:40px;text-align:center;color:var(--text-tertiary)">加载中...</div></div>
+      <div id="logs-list">
+        <div class="skeleton" style="height:48px;margin:8px 0"></div>
+        <div class="skeleton" style="height:48px;margin:8px 0"></div>
+        <div class="skeleton" style="height:48px;margin:8px 0"></div>
+        <div class="skeleton" style="height:48px;margin:8px 0"></div>
+        <div class="skeleton" style="height:48px;margin:8px 0"></div>
+      </div>
     </div>
   `;
 
@@ -141,7 +147,13 @@ async function fetchAndRender(listEl, updateEl) {
 
 function renderRows(listEl) {
   if (!state.rows.length) {
-    listEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-tertiary)">暂无数据</div>';
+    listEl.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">📭</div>
+        <div class="title">暂无数据</div>
+        <div class="desc">满足过滤条件的日志为空。调整时间范围或过滤条件试试。</div>
+      </div>
+    `;
     return;
   }
   listEl.innerHTML = state.rows.map(r => {

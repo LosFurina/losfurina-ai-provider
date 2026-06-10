@@ -20,20 +20,20 @@ export function renderOverview(container) {
     </div>
     <div class="page-body">
       <div id="kpi-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
-        ${Array(4).fill('<div class="card stat-card" style="height:80px"><div class="label">加载中</div></div>').join('')}
+        ${Array(4).fill('<div class="skeleton" style="height:80px"></div>').join('')}
       </div>
       <div class="card" style="height:200px;margin-bottom:20px">
         <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px">请求量趋势</div>
-        <div id="trend-chart" style="height:160px"></div>
+        <div id="trend-chart" style="height:160px"><div class="skeleton" style="height:160px"></div></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="card">
           <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px">最近活跃模型</div>
-          <div id="active-models"></div>
+          <div id="active-models"><div class="skeleton" style="height:24px;margin:6px 0"></div><div class="skeleton" style="height:24px;margin:6px 0"></div><div class="skeleton" style="height:24px;margin:6px 0"></div></div>
         </div>
         <div class="card">
           <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px">最近错误</div>
-          <div id="recent-errors"></div>
+          <div id="recent-errors"><div class="skeleton" style="height:24px;margin:6px 0"></div><div class="skeleton" style="height:24px;margin:6px 0"></div><div class="skeleton" style="height:24px;margin:6px 0"></div></div>
         </div>
       </div>
     </div>
@@ -105,7 +105,10 @@ async function loadTrend() {
 async function loadActiveModels() {
   const stats = await api(`/api/logs/stats?hours=${state.hours}`);
   const el = document.getElementById('active-models');
-  if (!stats.length) { el.innerHTML = '<div style="color:var(--text-tertiary);padding:8px">暂无数据</div>'; return; }
+  if (!stats.length) {
+    el.innerHTML = `<div class="empty-state" style="padding:20px"><div class="icon">📭</div><div class="title">暂无数据</div><div class="desc">所选时间窗口内没有模型调用记录。</div></div>`;
+    return;
+  }
   el.innerHTML = stats.slice(0, 6).map(s => `
     <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border-subtle);font-size:12px">
       <span>${s.model}</span>

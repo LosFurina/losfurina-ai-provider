@@ -16,7 +16,8 @@ export function renderHealth(container) {
       </div>
     </div>
     <div class="page-body" id="health-body">
-      <div style="padding:40px;text-align:center;color:var(--text-tertiary)">加载中...</div>
+      <div class="skeleton" style="height:120px;margin:12px 0"></div>
+      <div class="skeleton" style="height:120px;margin:12px 0"></div>
     </div>
   `;
 

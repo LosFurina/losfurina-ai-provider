@@ -19,7 +19,7 @@ export function renderAnalytics(container) {
     </div>
     <div class="page-body">
       <div id="cost-summary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
-        ${Array(3).fill('<div class="card stat-card" style="height:90px"><div class="label">加载中</div></div>').join('')}
+        ${Array(3).fill('<div class="skeleton" style="height:90px"></div>').join('')}
       </div>
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:20px">
         <div class="card" style="height:240px">
@@ -27,16 +27,16 @@ export function renderAnalytics(container) {
             <span style="font-size:11px;color:var(--text-secondary)">费用趋势</span>
             <span style="font-size:10px;color:var(--text-tertiary)" id="legend"></span>
           </div>
-          <div id="cost-chart" style="height:200px"></div>
+          <div id="cost-chart" style="height:200px"><div class="skeleton" style="height:200px"></div></div>
         </div>
         <div class="card">
           <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px">模型费用占比</div>
-          <div id="model-donut"></div>
+          <div id="model-donut"><div class="skeleton" style="height:160px;border-radius:50%;width:160px;margin:0 auto"></div></div>
         </div>
       </div>
       <div class="card">
         <div style="font-size:11px;color:var(--text-secondary);margin-bottom:12px">模型用量明细</div>
-        <div id="breakdown-table"></div>
+        <div id="breakdown-table"><div class="skeleton" style="height:32px;margin:6px 0"></div><div class="skeleton" style="height:32px;margin:6px 0"></div><div class="skeleton" style="height:32px;margin:6px 0"></div></div>
       </div>
     </div>
   `;
