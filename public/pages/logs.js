@@ -37,6 +37,20 @@ export function renderLogs(container) {
   renderFilterBar(container.querySelector('#filter-bar'));
   fetchAndRender(container.querySelector('#logs-list'), container.querySelector('#last-update'));
 
+  if (!state._cmdkListenerAttached) {
+    window.addEventListener('cmdk:apply-filter', (e) => {
+      Object.assign(state.filters, e.detail);
+      const searchInput = document.getElementById('search');
+      const hoursSel = document.getElementById('hours');
+      const statusSel = document.getElementById('status');
+      if (searchInput && 'search' in e.detail) searchInput.value = state.filters.search;
+      if (hoursSel && 'hours' in e.detail) hoursSel.value = state.filters.hours;
+      if (statusSel && 'status' in e.detail) statusSel.value = state.filters.status;
+      doFetch();
+    });
+    state._cmdkListenerAttached = true;
+  }
+
   // Polling every 30s
   if (state.pollTimer) clearInterval(state.pollTimer);
   state.pollTimer = setInterval(async () => {
