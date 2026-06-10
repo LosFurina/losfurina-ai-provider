@@ -342,7 +342,15 @@ function serveDashboard() {
       if (!str) return escHtml('(空)');
       try {
         const parsed = JSON.parse(str);
-        return escHtml(JSON.stringify(parsed, null, 2));
+        const formatted = JSON.stringify(parsed, null, 2);
+        // Syntax highlight: keys (blue), strings (green), numbers (orange), booleans/null (purple)
+        const highlighted = formatted
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/("(?:[^"\\]|\\.)*")\s*:/g, '<span style="color:#93c5fd">$1</span>:')  // keys
+          .replace(/:\s*("(?:[^"\\]|\\.)*")/g, ': <span style="color:#6ee7b7">$1</span>')  // string values
+          .replace(/:\s*(-?\d+\.?\d*)/g, ': <span style="color:#fbbf24">$1</span>')         // numbers
+          .replace(/:\s*(true|false|null)/g, ': <span style="color:#c084fc">$1</span>');       // booleans/null
+        return highlighted;
       } catch {}
       return escHtml(str);
     }
