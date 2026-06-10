@@ -5,7 +5,7 @@ import { getCurrentPath } from '/lib/router.js';
 const NAV = [
   { path: '/overview', icon: '📊', label: 'Overview' },
   { path: '/logs', icon: '📋', label: 'Logs' },
-  { path: '/analytics', icon: '📈', label: 'Analytics', disabled: true },
+  { path: '/analytics', icon: '📈', label: 'Analytics' },
   { path: '/playground', icon: '🧪', label: 'Playground', disabled: true },
   { path: '/health', icon: '💚', label: 'Health', disabled: true },
 ];

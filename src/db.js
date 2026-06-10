@@ -95,11 +95,12 @@ export async function queryStats(db, { hours = 24 } = {}) {
   const { results } = await db.prepare(
     `SELECT
        model,
-       COUNT(*) as request_count,
-       SUM(total_tokens) as total_tokens,
-       SUM(prompt_tokens) as prompt_tokens,
-       SUM(completion_tokens) as completion_tokens,
-       ROUND(AVG(duration_ms), 1) as avg_duration_ms
+       COUNT(*) AS request_count,
+       SUM(total_tokens) AS total_tokens,
+       SUM(prompt_tokens) AS prompt_tokens,
+       SUM(completion_tokens) AS completion_tokens,
+       SUM(cost_usd) AS cost_usd,
+       ROUND(AVG(duration_ms), 1) AS avg_duration_ms
      FROM logs
      WHERE timestamp >= ?
      GROUP BY model

@@ -3,6 +3,7 @@ import { getToken } from '/lib/api.js';
 import { renderSidebar } from '/components/sidebar.js';
 import { renderLogs } from '/pages/logs.js';
 import { renderOverview } from '/pages/overview.js';
+import { renderAnalytics } from '/pages/analytics.js';
 
 if (!getToken()) {
   window.location.href = '/login.html';
@@ -21,5 +22,6 @@ renderSidebar(document.getElementById('sidebar'));
 registerRoute('/', (container) => renderOverview(container));
 registerRoute('/overview', (container) => renderOverview(container));
 registerRoute('/logs', (container) => renderLogs(container));
+registerRoute('/analytics', (container) => renderAnalytics(container));
 
 startRouter(document.getElementById('main'));
