@@ -346,8 +346,8 @@ function serveDashboard() {
         // Syntax highlight: keys (blue), strings (green), numbers (orange), booleans/null (purple)
         const highlighted = formatted
           .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-          .replace(/("(?:[^"\\]|\\.)*")\\s*:/g, '<span style="color:#93c5fd">$1</span>:')
-          .replace(/:\\s*("(?:[^"\\]|\\.)*")/g, ': <span style="color:#6ee7b7">$1</span>')
+          .replace(/("(?:[^"\\\\]|\\.)*")\\s*:/g, '<span style="color:#93c5fd">$1</span>:')
+          .replace(/:\\s*("(?:[^"\\\\]|\\.)*")/g, ': <span style="color:#6ee7b7">$1</span>')
           .replace(/:\\s*(-?\\d+\\.?\\d*)/g, ': <span style="color:#fbbf24">$1</span>')
           .replace(/:\\s*(true|false|null)/g, ': <span style="color:#c084fc">$1</span>');
         return highlighted;
