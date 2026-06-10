@@ -24,6 +24,31 @@ const DDL = [
   `CREATE INDEX IF NOT EXISTS idx_logs_status ON logs(status)`,
   `CREATE INDEX IF NOT EXISTS idx_logs_cost ON logs(cost_usd)`,
   `CREATE INDEX IF NOT EXISTS idx_logs_provider ON logs(provider_id)`,
+  `CREATE TABLE IF NOT EXISTS providers (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    name              TEXT NOT NULL UNIQUE,
+    base_url          TEXT NOT NULL,
+    api_key           TEXT NOT NULL,
+    priority          INTEGER NOT NULL DEFAULT 100,
+    enabled           INTEGER NOT NULL DEFAULT 1,
+    models            TEXT DEFAULT '[]',
+    health_status     TEXT DEFAULT 'unknown',
+    last_latency_ms   INTEGER,
+    last_checked_at   TEXT,
+    last_error        TEXT,
+    created_at        TEXT NOT NULL,
+    updated_at        TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS provider_health_logs (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider_id  INTEGER NOT NULL,
+    checked_at   TEXT NOT NULL,
+    status       TEXT NOT NULL,
+    latency_ms   INTEGER,
+    http_status  INTEGER,
+    model_count  INTEGER,
+    error        TEXT
+  )`,
 ];
 
 beforeAll(async () => {
