@@ -2,11 +2,20 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>Login - LosFurina</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 - LosFurina</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <div id="login"></div>
+  <div class="login-container">
+    <div class="login-box">
+      <h1 style="font-size:1.25rem;color:var(--accent-blue);margin-bottom:8px;text-align:center">⚡ LosFurina AI Provider</h1>
+      <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:24px;text-align:center">请输入 API Key 登录</p>
+      <input type="password" class="login-input" id="password" placeholder="API Key" autofocus>
+      <button class="login-button" id="login-btn">登录</button>
+      <div class="login-error" id="error">密钥错误，请重试</div>
+    </div>
+  </div>
   <script type="module" src="/login.js"></script>
 </body>
 </html>
