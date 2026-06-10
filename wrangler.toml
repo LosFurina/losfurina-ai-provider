@@ -6,8 +6,7 @@ compatibility_date = "2026-06-10"
 [[d1_databases]]
 binding = "DB"
 database_name = "losfurina-logs"
-# Replace with real UUID from 'npm run db:create'
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "c8ca6c63-accb-44af-ba07-42dd9e15a107"
 
 # Environment variables (secrets managed via wrangler secret put)
 [vars]
