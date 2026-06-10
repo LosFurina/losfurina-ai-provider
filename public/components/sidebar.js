@@ -3,7 +3,7 @@ import { clearToken } from '/lib/api.js';
 import { getCurrentPath } from '/lib/router.js';
 
 const NAV = [
-  { path: '/overview', icon: '📊', label: 'Overview', disabled: true },
+  { path: '/overview', icon: '📊', label: 'Overview' },
   { path: '/logs', icon: '📋', label: 'Logs' },
   { path: '/analytics', icon: '📈', label: 'Analytics', disabled: true },
   { path: '/playground', icon: '🧪', label: 'Playground', disabled: true },
