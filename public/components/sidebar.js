@@ -7,7 +7,7 @@ const NAV = [
   { path: '/logs', icon: '📋', label: 'Logs' },
   { path: '/analytics', icon: '📈', label: 'Analytics' },
   { path: '/playground', icon: '🧪', label: 'Playground', disabled: true },
-  { path: '/health', icon: '💚', label: 'Health', disabled: true },
+  { path: '/health', icon: '💚', label: 'Health' },
 ];
 
 export function renderSidebar(container) {
