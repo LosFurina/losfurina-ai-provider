@@ -5,8 +5,6 @@
 export function getConfig(env) {
   return {
     workerApiKey: env.WORKER_API_KEY || '',
-    targetUrl: env.TARGET_URL || '',
-    targetApiKey: env.TARGET_API_KEY || '',
     telegramBotToken: env.TELEGRAM_BOT_TOKEN || '',
     telegramChatId: env.TELEGRAM_CHAT_ID || '',
   };

@@ -2,6 +2,7 @@ import { getConfig } from './config.js';
 import { authenticate, unauthorizedResponse } from './auth.js';
 import { handleProxy } from './routes/proxy.js';
 import { handleLogsApi } from './routes/api-logs.js';
+import { handleModelsList } from './routes/models.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -26,13 +27,11 @@ export default {
       return handleLogsApi(request, env);
     }
 
+    if (url.pathname === '/v1/models' && request.method === 'GET') {
+      return handleModelsList(request, env);
+    }
+
     if (url.pathname.startsWith('/v1/')) {
-      if (!config.targetUrl) {
-        return new Response(JSON.stringify({ error: { message: 'Target URL not configured', type: 'config_error' } }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
       return handleProxy(request, config, env, ctx);
     }
 
