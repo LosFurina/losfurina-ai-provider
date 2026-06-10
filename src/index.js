@@ -76,12 +76,13 @@ async function proxyRequest(request, config, env, ctx) {
 
   try {
     const targetUrl = new URL(request.url).pathname;
+    const headers = new Headers(request.headers);
+    headers.set('Authorization', `Bearer ${config.targetApiKey}`);
+    headers.delete('Host');
+
     const targetResponse = await fetch(new URL(targetUrl, config.targetUrl).toString(), {
       method: request.method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.targetApiKey}`,
-      },
+      headers,
       body: request.method === 'GET' ? undefined : requestBody,
     });
 
@@ -130,7 +131,7 @@ async function proxyRequest(request, config, env, ctx) {
     return new Response(responseBody, {
       status: targetResponse.status,
       statusText: targetResponse.statusText,
-      headers: { 'Content-Type': 'application/json' },
+      headers: targetResponse.headers,
     });
   } catch (err) {
     const durationMs = Date.now() - startTime;
