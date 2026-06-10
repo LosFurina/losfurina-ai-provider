@@ -2,9 +2,12 @@ name = "losfurina-ai-provider"
 main = "src/index.js"
 compatibility_date = "2026-06-10"
 
-# D1 Database binding
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "losfurina-logs"
 database_id = "c8ca6c63-accb-44af-ba07-42dd9e15a107"
-
