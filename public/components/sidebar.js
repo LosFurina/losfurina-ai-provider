@@ -1,5 +1,5 @@
 // public/components/sidebar.js
-import { clearToken } from '/lib/api.js';
+import { clearToken, api } from '/lib/api.js';
 import { getCurrentPath } from '/lib/router.js';
 
 const NAV = [
@@ -9,6 +9,8 @@ const NAV = [
   { path: '/playground', icon: '🧪', label: 'Playground', disabled: true },
   { path: '/health', icon: '💚', label: 'Health' },
 ];
+
+let healthBadgeRefreshTimer = null;
 
 export function renderSidebar(container) {
   const current = getCurrentPath();
@@ -23,8 +25,11 @@ export function renderSidebar(container) {
       ${NAV.map(item => `
         <a href="${item.disabled ? '#' : '#' + item.path}"
            class="${current === item.path ? 'active' : ''}"
+           data-path="${item.path}"
            style="${item.disabled ? 'opacity:0.4;cursor:not-allowed' : ''}">
-          <span>${item.icon}</span><span>${item.label}</span>
+          <span>${item.icon}</span>
+          <span>${item.label}</span>
+          ${item.path === '/health' ? '<span id="health-badge" style="margin-left:auto;width:6px;height:6px;border-radius:50%;background:var(--text-tertiary)"></span>' : ''}
         </a>
       `).join('')}
     </nav>
@@ -37,9 +42,24 @@ export function renderSidebar(container) {
     clearToken();
     window.location.href = '/login.html';
   };
-  // ⌘K placeholder — wired in Phase 5
-  container.querySelector('#search-trigger').onclick = () => {
-    alert('Command palette coming in Phase 5');
-  };
+  container.querySelector('#search-trigger').onclick = () => alert('⌘K 在 Phase 5 实现');
   window.addEventListener('hashchange', () => renderSidebar(container));
+
+  refreshHealthBadge();
+  if (healthBadgeRefreshTimer) clearInterval(healthBadgeRefreshTimer);
+  healthBadgeRefreshTimer = setInterval(refreshHealthBadge, 60000);
+}
+
+async function refreshHealthBadge() {
+  const badge = document.getElementById('health-badge');
+  if (!badge) return;
+  try {
+    const list = await api('/api/providers');
+    const enabled = list.filter(p => p.enabled);
+    const hasUnhealthy = enabled.some(p => p.health_status === 'unhealthy');
+    const hasDegraded = enabled.some(p => p.health_status === 'degraded');
+    badge.style.background = hasUnhealthy ? 'var(--accent-red)' : hasDegraded ? 'var(--accent-yellow)' : 'var(--accent-green)';
+  } catch {
+    badge.style.background = 'var(--text-tertiary)';
+  }
 }
