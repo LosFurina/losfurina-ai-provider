@@ -198,12 +198,29 @@ async function openDetail(id) {
         <div class="card"><div class="label">延迟</div><div style="margin-top:4px">${row.duration_ms}ms</div></div>
         <div class="card"><div class="label">费用</div><div style="margin-top:4px;color:var(--accent-yellow)">${formatCost(row.cost_usd)}</div></div>
       </div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="label">Token 拆解</div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:8px;font-family:var(--font-mono);font-size:11px">
+          <div><div style="color:var(--text-tertiary);font-size:10px;text-transform:uppercase">Prompt</div><div style="margin-top:2px">${formatTokens(row.prompt_tokens)}</div></div>
+          <div><div style="color:var(--text-tertiary);font-size:10px;text-transform:uppercase">Completion</div><div style="margin-top:2px">${formatTokens(row.completion_tokens)}</div></div>
+          <div><div style="color:var(--text-tertiary);font-size:10px;text-transform:uppercase">Cache write</div><div style="margin-top:2px;color:var(--accent-blue)">${formatTokens(row.cache_creation_tokens)}</div></div>
+          <div><div style="color:var(--text-tertiary);font-size:10px;text-transform:uppercase">Cache read</div><div style="margin-top:2px;color:var(--accent-green)">${formatTokens(row.cache_read_tokens)}</div></div>
+          <div><div style="color:var(--text-tertiary);font-size:10px;text-transform:uppercase">Total</div><div style="margin-top:2px;font-weight:600">${formatTokens(row.total_tokens)}</div></div>
+        </div>
+      </div>
       <div style="margin-bottom:12px"><div style="color:var(--text-secondary);font-size:11px;margin-bottom:6px">📥 Request</div>${renderJsonViewer(row.request_body)}</div>
       <div><div style="color:var(--text-secondary);font-size:11px;margin-bottom:6px">📤 Response</div>${renderJsonViewer(row.response_body)}</div>
     `;
   } catch (err) {
     panel.body.innerHTML = `<div style="color:var(--accent-red)">${err.message}</div>`;
   }
+}
+
+function formatTokens(n) {
+  if (n == null || n === 0) return '—';
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(n);
 }
 
 function saveCurrentView() {
