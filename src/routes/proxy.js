@@ -1,6 +1,7 @@
 // src/routes/proxy.js
 import { resolveProvider } from '../lib/router.js';
 import { calculateCost } from '../lib/pricing.js';
+import { parseUsage } from '../lib/usage.js';
 import { insertLog } from '../db.js';
 import { formatBatchLog } from '../logger.js';
 import { sendTelegramMessage } from '../telegram.js';
@@ -41,6 +42,7 @@ export async function handleProxy(request, config, env, ctx) {
     const headers = new Headers(request.headers);
     headers.set('Authorization', `Bearer ${provider.api_key}`);
     headers.delete('Host');
+    headers.delete('x-api-key');
 
     const parsedBody = JSON.parse(requestBody);
     parsedBody.model = rawModel;
@@ -55,15 +57,9 @@ export async function handleProxy(request, config, env, ctx) {
     const responseBody = await targetResponse.clone().text();
     const durationMs = Date.now() - startTime;
 
-    let promptTokens = 0, completionTokens = 0, totalTokens = 0;
-    try {
-      const parsed = JSON.parse(responseBody);
-      if (parsed.usage) {
-        promptTokens = parsed.usage.prompt_tokens || 0;
-        completionTokens = parsed.usage.completion_tokens || 0;
-        totalTokens = parsed.usage.total_tokens || 0;
-      }
-    } catch {}
+    const contentType = targetResponse.headers.get('content-type') || '';
+    const usage = parseUsage(responseBody, contentType);
+    const { promptTokens, completionTokens, totalTokens, cacheCreationTokens, cacheReadTokens } = usage;
 
     const costUsd = await calculateCost(env.DB, rawModel, promptTokens, completionTokens);
 
@@ -77,6 +73,8 @@ export async function handleProxy(request, config, env, ctx) {
       promptTokens,
       completionTokens,
       totalTokens,
+      cacheCreationTokens,
+      cacheReadTokens,
       requestBody,
       responseBody,
       costUsd,
