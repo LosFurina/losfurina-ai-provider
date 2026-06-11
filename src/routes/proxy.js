@@ -25,15 +25,15 @@ export async function handleProxy(request, config, env, ctx) {
     return jsonError(400, 'missing_model', 'model field is required in request body');
   }
 
-  const provider = await resolveProvider(env.DB, model);
-  if (!provider) {
-    // Distinguish "no providers configured at all" vs "model not found"
+  const result = await resolveProvider(env.DB, model);
+  if (!result) {
     const { results } = await env.DB.prepare('SELECT COUNT(*) AS n FROM providers WHERE enabled = 1').all();
     if (!results[0].n) {
       return jsonError(503, 'no_providers', 'no providers configured; insert into providers table to start routing');
     }
     return jsonError(404, 'model_not_found', `no enabled healthy provider owns model "${model}"`);
   }
+  const { provider, rawModel } = result;
 
   try {
     const pathname = new URL(request.url).pathname;
@@ -42,10 +42,14 @@ export async function handleProxy(request, config, env, ctx) {
     headers.set('Authorization', `Bearer ${provider.api_key}`);
     headers.delete('Host');
 
+    const parsedBody = JSON.parse(requestBody);
+    parsedBody.model = rawModel;
+    const upstreamBody = JSON.stringify(parsedBody);
+
     const targetResponse = await fetch(targetUrl, {
       method: request.method,
       headers,
-      body: request.method === 'GET' ? undefined : requestBody,
+      body: request.method === 'GET' ? undefined : upstreamBody,
     });
 
     const responseBody = await targetResponse.clone().text();
@@ -61,7 +65,7 @@ export async function handleProxy(request, config, env, ctx) {
       }
     } catch {}
 
-    const costUsd = await calculateCost(env.DB, model, promptTokens, completionTokens);
+    const costUsd = await calculateCost(env.DB, rawModel, promptTokens, completionTokens);
 
     const logEntry = {
       timestamp: new Date().toISOString(),
