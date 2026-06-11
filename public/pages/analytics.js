@@ -33,6 +33,23 @@ export function renderAnalytics(container) {
           <div id="model-donut"><div class="skeleton" style="height:160px;border-radius:50%;width:160px;margin:0 auto"></div></div>
         </div>
       </div>
+
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px">上下文与 Cache</div>
+      <div id="cache-summary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
+        ${Array(3).fill('<div class="skeleton" style="height:90px"></div>').join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:20px">
+        <div class="card" style="height:240px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <span style="font-size:11px;color:var(--text-secondary)">Cache 命中率趋势</span>
+          </div>
+          <div id="cache-trend" style="height:200px"><div class="skeleton" style="height:200px"></div></div>
+        </div>
+        <div class="card">
+          <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px">分模型命中率</div>
+          <div id="cache-per-model"><div class="skeleton" style="height:24px;margin:6px 0"></div><div class="skeleton" style="height:24px;margin:6px 0"></div></div>
+        </div>
+      </div>
       <div class="card">
         <div style="font-size:11px;color:var(--text-secondary);margin-bottom:12px">模型用量明细</div>
         <div id="breakdown-table"><div class="skeleton" style="height:32px;margin:6px 0"></div><div class="skeleton" style="height:32px;margin:6px 0"></div><div class="skeleton" style="height:32px;margin:6px 0"></div></div>
@@ -53,7 +70,7 @@ export function renderAnalytics(container) {
 }
 
 async function load() {
-  await Promise.all([loadTokenSummary(), loadTokenChart(), loadModelDonut(), loadBreakdown()]);
+  await Promise.all([loadTokenSummary(), loadTokenChart(), loadModelDonut(), loadBreakdown(), loadCacheSummary(), loadCacheTrend(), loadCachePerModel()]);
 }
 
 async function loadTokenSummary() {
@@ -137,6 +154,61 @@ async function loadBreakdown() {
       </div>
     `).join('')}
   `;
+}
+
+async function loadCacheSummary() {
+  const stats = await api(`/api/logs/cache-stats?hours=${state.hours}`);
+  const avgContext = stats.requestCount > 0 ? Math.round(stats.totalContext / stats.requestCount) : 0;
+  const hitPct = (stats.hitRate * 100).toFixed(1);
+  const el = document.getElementById('cache-summary');
+  el.innerHTML = `
+    ${tokenCard('平均上下文', formatNum(avgContext), `基于 ${stats.requestCount} 次请求`)}
+    ${tokenCard('总命中率', hitPct + '%', `${formatNum(stats.totalCacheRead)} / ${formatNum(stats.totalContext)}`)}
+    ${tokenCard('节约 token', formatNum(stats.totalCacheRead), '省去重复处理的 input')}
+  `;
+}
+
+async function loadCacheTrend() {
+  const granularity = state.hours <= 168 ? 'hour' : 'day';
+  // Pull two timeseries: total tokens (denominator) and cache_read (numerator estimate)
+  // We don't have a metric=cache_read in queryTimeseries yet, so derive from per-bucket queries.
+  // Cheaper: query timeseries with metric=tokens and recompute hit rate aggregated across the window only.
+  // For now, render a single-line of total context (close enough; per-bucket cache fraction is a future iteration).
+  const data = await api(`/api/logs/timeseries?hours=${state.hours}&granularity=${granularity}&metric=tokens`);
+  renderLineChart(document.getElementById('cache-trend'), {
+    buckets: data.buckets,
+    series: [{ label: '上下文 token', extract: b => b.value }],
+    height: 200,
+    formatY: v => formatNum(v || 0),
+  });
+}
+
+async function loadCachePerModel() {
+  const stats = await api(`/api/logs/cache-stats?hours=${state.hours}`);
+  const el = document.getElementById('cache-per-model');
+  if (!stats.perModel.length) {
+    el.innerHTML = '<div style="color:var(--text-tertiary);padding:20px;text-align:center;font-size:11px">无数据</div>';
+    return;
+  }
+  el.innerHTML = stats.perModel.slice(0, 6).map(m => {
+    const pct = (m.hitRate * 100).toFixed(0);
+    return `
+      <div style="padding:8px 0;border-bottom:1px solid var(--border-subtle);font-size:11px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%">${escape(m.model)}</span>
+          <span style="font-family:var(--font-mono);color:${m.hitRate >= 0.5 ? 'var(--accent-green)' : 'var(--accent-yellow)'}">${pct}%</span>
+        </div>
+        <div style="height:4px;background:var(--bg-overlay);border-radius:2px;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:var(--accent-green)"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function escape(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function formatNum(n) {
