@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { judgeStatus, parseModelsResponse } from '../src/lib/healthcheck.js';
+import { judgeStatus, parseModelsResponse, buildModelMap } from '../src/lib/healthcheck.js';
 
 describe('judgeStatus', () => {
   it('returns healthy on 200 with non-empty model list', () => {
@@ -27,5 +27,19 @@ describe('parseModelsResponse', () => {
   });
   it('returns [] on missing data array', () => {
     expect(parseModelsResponse('{"object":"list"}')).toEqual([]);
+  });
+});
+
+describe('buildModelMap', () => {
+  it('prefixes each model with provider name', () => {
+    const map = buildModelMap('PackyAPI-1.5', ['claude-opus-4-7', 'claude-sonnet-4-6']);
+    expect(map).toEqual({
+      'PackyAPI-1.5-claude-opus-4-7': 'claude-opus-4-7',
+      'PackyAPI-1.5-claude-sonnet-4-6': 'claude-sonnet-4-6',
+    });
+  });
+
+  it('returns empty object for empty models', () => {
+    expect(buildModelMap('Test', [])).toEqual({});
   });
 });

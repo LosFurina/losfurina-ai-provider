@@ -8,6 +8,14 @@ export function judgeStatus(httpStatus, models) {
   return 'healthy';
 }
 
+export function buildModelMap(providerName, models) {
+  const map = {};
+  for (const m of models) {
+    map[`${providerName}-${m}`] = m;
+  }
+  return map;
+}
+
 export function parseModelsResponse(text) {
   try {
     const parsed = JSON.parse(text);
@@ -64,11 +72,12 @@ export async function probeAllProviders(env, ctx) {
 
   const stmts = [];
   for (const { provider, probe } of results) {
+    const modelMap = buildModelMap(provider.name, probe.models);
     stmts.push(
       env.DB.prepare(
         `UPDATE providers
          SET health_status = ?, last_latency_ms = ?, last_checked_at = ?,
-             last_error = ?, models = ?, updated_at = ?
+             last_error = ?, models = ?, model_map = ?, updated_at = ?
          WHERE id = ?`
       ).bind(
         probe.status,
@@ -76,6 +85,7 @@ export async function probeAllProviders(env, ctx) {
         probe.checkedAt,
         probe.error,
         JSON.stringify(probe.models),
+        JSON.stringify(modelMap),
         probe.checkedAt,
         provider.id
       )
