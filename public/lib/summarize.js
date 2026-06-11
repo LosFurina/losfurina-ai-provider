@@ -23,6 +23,62 @@ export function summarizeRequest(rawBody) {
   return out;
 }
 
+// Decompose a request body into context categories with byte counts and
+// proportional token estimates. tokenStats carries the precise upstream totals.
+export function analyzeComposition(rawBody, tokenStats = {}) {
+  const cacheReadTokens = tokenStats.cacheReadTokens || 0;
+  const cacheCreationTokens = tokenStats.cacheCreationTokens || 0;
+  const promptTokens = tokenStats.promptTokens || 0;
+  const totalContext = promptTokens + cacheCreationTokens + cacheReadTokens;
+  const empty = {
+    system: { bytes: 0, tokens: 0 },
+    tools: { bytes: 0, tokens: 0 },
+    history: { bytes: 0, tokens: 0 },
+    lastUser: { bytes: 0, tokens: 0 },
+    cacheRead: { tokens: cacheReadTokens },
+    totalContext,
+    hitRate: totalContext > 0 ? cacheReadTokens / totalContext : 0,
+  };
+  if (!rawBody) return empty;
+  let body;
+  try { body = JSON.parse(rawBody); } catch { return empty; }
+
+  const sysBytes = byteSize(body.system);
+  const toolsBytes = byteSize(body.tools);
+
+  let historyBytes = 0;
+  let lastUserBytes = 0;
+  if (Array.isArray(body.messages) && body.messages.length) {
+    const lastIdx = body.messages.length - 1;
+    historyBytes = byteSize(body.messages.slice(0, lastIdx));
+    lastUserBytes = byteSize(body.messages[lastIdx]);
+  }
+
+  const totalBytes = sysBytes + toolsBytes + historyBytes + lastUserBytes;
+  const fresh = promptTokens + cacheCreationTokens;
+  const allocate = (bytes) => totalBytes > 0
+    ? Math.round((bytes / totalBytes) * fresh)
+    : 0;
+
+  return {
+    system: { bytes: sysBytes, tokens: allocate(sysBytes) },
+    tools: { bytes: toolsBytes, tokens: allocate(toolsBytes) },
+    history: { bytes: historyBytes, tokens: allocate(historyBytes) },
+    lastUser: { bytes: lastUserBytes, tokens: allocate(lastUserBytes) },
+    cacheRead: { tokens: cacheReadTokens },
+    totalContext,
+    hitRate: totalContext > 0 ? cacheReadTokens / totalContext : 0,
+  };
+}
+
+function byteSize(value) {
+  if (value == null) return 0;
+  if (typeof value === 'string') return value.length;
+  if (Array.isArray(value) && value.length === 0) return 0;
+  if (typeof value === 'object' && Object.keys(value).length === 0) return 0;
+  try { return JSON.stringify(value).length; } catch { return 0; }
+}
+
 function extractSystem(body) {
   // Anthropic: top-level `system` field (string) or array of content blocks
   if (typeof body.system === 'string') return body.system;
