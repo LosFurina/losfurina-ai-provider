@@ -171,3 +171,58 @@ export async function queryTimeseries(db, { hours = 24, granularity = 'hour', me
 
   return { buckets: [...bucketsMap.values()].sort((a, b) => a.ts.localeCompare(b.ts)) };
 }
+
+export async function queryCacheStats(db, { hours = 24 } = {}) {
+  const cutoff = new Date(Date.now() - hours * 3600 * 1000).toISOString();
+  const totals = await db.prepare(
+    `SELECT
+       COUNT(*) AS request_count,
+       COALESCE(SUM(prompt_tokens), 0) AS total_prompt,
+       COALESCE(SUM(cache_creation_tokens), 0) AS total_cache_creation,
+       COALESCE(SUM(cache_read_tokens), 0) AS total_cache_read
+     FROM logs WHERE timestamp >= ?`
+  ).bind(cutoff).first();
+
+  const requestCount = totals.request_count || 0;
+  const totalPrompt = totals.total_prompt || 0;
+  const totalCacheCreation = totals.total_cache_creation || 0;
+  const totalCacheRead = totals.total_cache_read || 0;
+  const totalContext = totalPrompt + totalCacheCreation + totalCacheRead;
+  const hitRate = totalContext > 0 ? totalCacheRead / totalContext : 0;
+
+  const { results: rows } = await db.prepare(
+    `SELECT
+       model,
+       COUNT(*) AS requests,
+       COALESCE(SUM(prompt_tokens), 0) AS prompt,
+       COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation,
+       COALESCE(SUM(cache_read_tokens), 0) AS cache_read
+     FROM logs
+     WHERE timestamp >= ?
+     GROUP BY model
+     ORDER BY (prompt + cache_creation + cache_read) DESC`
+  ).bind(cutoff).all();
+
+  const perModel = rows.map(r => {
+    const ctx = (r.prompt || 0) + (r.cache_creation || 0) + (r.cache_read || 0);
+    return {
+      model: r.model,
+      requests: r.requests,
+      prompt: r.prompt || 0,
+      cacheCreation: r.cache_creation || 0,
+      cacheRead: r.cache_read || 0,
+      context: ctx,
+      hitRate: ctx > 0 ? (r.cache_read || 0) / ctx : 0,
+    };
+  });
+
+  return {
+    requestCount,
+    totalPrompt,
+    totalCacheCreation,
+    totalCacheRead,
+    totalContext,
+    hitRate,
+    perModel,
+  };
+}

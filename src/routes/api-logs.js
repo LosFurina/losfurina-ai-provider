@@ -1,4 +1,4 @@
-import { queryLogs, queryStats, queryLogById, queryKpis, queryTimeseries } from '../db.js';
+import { queryLogs, queryStats, queryLogById, queryKpis, queryTimeseries, queryCacheStats } from '../db.js';
 
 export async function handleLogsApi(request, env) {
   const url = new URL(request.url);
@@ -46,6 +46,11 @@ export async function handleLogsApi(request, env) {
         breakdown: url.searchParams.get('breakdown') || undefined,
       });
       return jsonResponse(ts);
+    }
+
+    if (url.pathname === '/api/logs/cache-stats') {
+      const stats = await queryCacheStats(env.DB, { hours });
+      return jsonResponse(stats);
     }
 
     if (url.pathname === '/api/logs/stats') {
