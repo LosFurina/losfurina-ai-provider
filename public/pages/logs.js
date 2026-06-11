@@ -4,7 +4,7 @@ import { renderJsonViewer } from '/components/json-viewer.js';
 import { openSidePanel } from '/components/side-panel.js';
 
 const state = {
-  filters: { hours: 24, search: '', models: [], status: '', minDuration: null, maxDuration: null, minCost: null, maxCost: null, providerId: null },
+  filters: { hours: 24, search: '', models: [], status: '', minDuration: null, maxDuration: null, providerId: null },
   rows: [],
   lastFetch: 0,
   pollTimer: null,
@@ -28,7 +28,7 @@ export function renderLogs(container) {
     <div style="padding:16px 24px;border-bottom:1px solid var(--border-subtle)" id="filter-bar"></div>
     <div class="page-body" id="logs-body">
       <div class="log-grid log-header">
-        <span>时间</span><span>模型</span><span>状态</span><span>延迟</span><span>Tokens</span><span>费用</span><span>路径</span>
+        <span>时间</span><span>模型</span><span>状态</span><span>延迟</span><span>Tokens</span><span>路径</span>
       </div>
       <div id="logs-list">
         <div class="skeleton" style="height:48px;margin:8px 0"></div>
@@ -127,8 +127,6 @@ async function fetchAndRender(listEl, updateEl) {
   for (const m of f.models) params.append('model', m);
   if (f.minDuration != null) params.set('min_duration', f.minDuration);
   if (f.maxDuration != null) params.set('max_duration', f.maxDuration);
-  if (f.minCost != null) params.set('min_cost', f.minCost);
-  if (f.maxCost != null) params.set('max_cost', f.maxCost);
   if (f.providerId != null) params.set('provider_id', f.providerId);
 
   try {
@@ -165,7 +163,6 @@ function renderRows(listEl) {
         <span class="mono ${statusClass}">${r.status}</span>
         <span class="mono">${r.duration_ms}ms</span>
         <span class="mono">${r.total_tokens || '—'}</span>
-        <span class="mono" style="color:var(--accent-yellow)">${formatCost(r.cost_usd)}</span>
         <span class="mono" style="color:var(--text-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.path}</span>
       </div>`;
   }).join('');
@@ -181,22 +178,15 @@ function modelTagClass(model) {
   return 'tag-model-default';
 }
 
-function formatCost(cost) {
-  if (!cost || cost === 0) return '—';
-  if (cost < 0.001) return '<$0.001';
-  return '$' + cost.toFixed(3);
-}
-
 async function openDetail(id) {
   const panel = openSidePanel({ title: `请求详情 #${id}`, bodyHtml: '<div>加载中...</div>' });
   try {
     const row = await api(`/api/logs/${id}`);
     panel.body.innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
         <div class="card"><div class="label">模型</div><div style="margin-top:4px;color:#93c5fd">${row.model}</div></div>
         <div class="card"><div class="label">状态</div><div style="margin-top:4px">${row.status}</div></div>
         <div class="card"><div class="label">延迟</div><div style="margin-top:4px">${row.duration_ms}ms</div></div>
-        <div class="card"><div class="label">费用</div><div style="margin-top:4px;color:var(--accent-yellow)">${formatCost(row.cost_usd)}</div></div>
       </div>
       <div class="card" style="margin-bottom:16px">
         <div class="label">Token 拆解</div>

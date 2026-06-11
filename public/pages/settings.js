@@ -1,18 +1,17 @@
 // public/pages/settings.js
 import { api } from '/lib/api.js';
 
-const state = { tab: 'pricing' };
+const state = { tab: 'alerts' };
 
 export function renderSettings(container) {
   container.innerHTML = `
     <div class="page-header">
       <div>
         <div class="page-title">Settings</div>
-        <div class="page-subtitle">模型单价 · 告警规则</div>
+        <div class="page-subtitle">告警规则与触发记录</div>
       </div>
     </div>
     <div style="padding:16px 24px;border-bottom:1px solid var(--border-subtle);display:flex;gap:8px">
-      <button class="filter-chip ${state.tab === 'pricing' ? 'active' : ''}" data-tab="pricing">模型单价</button>
       <button class="filter-chip ${state.tab === 'alerts' ? 'active' : ''}" data-tab="alerts">告警规则</button>
       <button class="filter-chip ${state.tab === 'triggered' ? 'active' : ''}" data-tab="triggered">触发记录</button>
     </div>
@@ -27,47 +26,8 @@ export function renderSettings(container) {
 
 async function loadTab() {
   const body = document.getElementById('settings-body');
-  if (state.tab === 'pricing') return renderPricing(body);
   if (state.tab === 'alerts') return renderAlerts(body);
   if (state.tab === 'triggered') return renderTriggered(body);
-}
-
-async function renderPricing(body) {
-  const rows = await api('/api/admin/pricing');
-  body.innerHTML = `
-    <div class="card">
-      <div style="display:grid;grid-template-columns:1fr 140px 140px 60px;padding:8px 0;font-size:10px;color:var(--text-tertiary);text-transform:uppercase;border-bottom:1px solid var(--border-subtle)">
-        <span>Model</span><span>Prompt $/1K</span><span>Completion $/1K</span><span></span>
-      </div>
-      ${rows.map(r => `
-        <div style="display:grid;grid-template-columns:1fr 140px 140px 60px;padding:10px 0;border-bottom:1px solid var(--border-subtle);align-items:center;font-size:12px">
-          <span class="mono">${r.model}</span>
-          <span class="mono">$${r.prompt_per_1k}</span>
-          <span class="mono">$${r.completion_per_1k}</span>
-          <span style="cursor:pointer;color:var(--accent-red);text-align:right" data-del="${r.model}">删除</span>
-        </div>
-      `).join('')}
-      <div style="display:grid;grid-template-columns:1fr 140px 140px 60px;padding:10px 0;align-items:center;gap:8px">
-        <input id="new-model" placeholder="模型名" style="background:var(--bg-overlay);border:1px solid var(--border-default);color:var(--text-primary);padding:6px;border-radius:4px;font-size:12px">
-        <input id="new-prompt" type="number" step="0.0001" placeholder="0.0025" style="background:var(--bg-overlay);border:1px solid var(--border-default);color:var(--text-primary);padding:6px;border-radius:4px;font-size:12px">
-        <input id="new-completion" type="number" step="0.0001" placeholder="0.010" style="background:var(--bg-overlay);border:1px solid var(--border-default);color:var(--text-primary);padding:6px;border-radius:4px;font-size:12px">
-        <button class="filter-chip" id="add-pricing" style="background:var(--accent-blue);color:white">添加</button>
-      </div>
-    </div>
-  `;
-  body.querySelectorAll('[data-del]').forEach(el => el.onclick = async () => {
-    if (!confirm(`删除 ${el.dataset.del}?`)) return;
-    await api('/api/admin/pricing/' + encodeURIComponent(el.dataset.del), { method: 'DELETE' });
-    renderPricing(body);
-  });
-  document.getElementById('add-pricing').onclick = async () => {
-    const model = document.getElementById('new-model').value.trim();
-    const p = parseFloat(document.getElementById('new-prompt').value);
-    const c = parseFloat(document.getElementById('new-completion').value);
-    if (!model || isNaN(p) || isNaN(c)) { alert('请填写完整'); return; }
-    await api('/api/admin/pricing', { method: 'PUT', body: JSON.stringify({ model, prompt_per_1k: p, completion_per_1k: c }) });
-    renderPricing(body);
-  };
 }
 
 async function renderAlerts(body) {
@@ -88,12 +48,10 @@ async function renderAlerts(body) {
     <div class="card" style="margin-top:12px">
       <div style="font-size:11px;color:var(--text-secondary);margin-bottom:12px">添加规则</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <input id="ar-name" placeholder="规则名（如 单次费用过高）" class="login-input" style="margin:0;padding:6px 8px;font-size:12px">
+        <input id="ar-name" placeholder="规则名（如 延迟过高）" class="login-input" style="margin:0;padding:6px 8px;font-size:12px">
         <select id="ar-metric" class="login-input" style="margin:0;padding:6px 8px;font-size:12px">
-          <option value="request_cost">单次请求费用</option>
           <option value="latency_ms">单次延迟 (ms)</option>
           <option value="error_rate">错误率 (0-1)</option>
-          <option value="daily_cost">日累计费用 ($)</option>
           <option value="provider_unhealthy">Provider 不健康</option>
         </select>
         <select id="ar-operator" class="login-input" style="margin:0;padding:6px 8px;font-size:12px">

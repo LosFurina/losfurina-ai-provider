@@ -61,7 +61,7 @@ async function loadKpis() {
   const grid = document.getElementById('kpi-grid');
   grid.innerHTML = `
     ${kpiCard('请求总量', data.request_count.toLocaleString(), deltaPct(data.request_count, prev.request_count))}
-    ${kpiCard('Token 消耗', formatNum(data.total_tokens), '~$' + data.total_cost.toFixed(2))}
+    ${kpiCard('Token 消耗', formatNum(data.total_tokens), deltaPct(data.total_tokens, prev.total_tokens))}
     ${kpiCard('成功率', (data.success_rate * 100).toFixed(1) + '%', data.error_count + ' 错误', data.success_rate < 0.95 ? 'up' : 'down')}
     ${kpiCard('平均延迟', data.avg_latency + 'ms', deltaPct(data.avg_latency, prev.avg_latency, true))}
   `;
