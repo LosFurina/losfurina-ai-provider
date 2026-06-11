@@ -2,7 +2,8 @@
 import { api } from '/lib/api.js';
 import { renderJsonViewer } from '/components/json-viewer.js';
 import { openSidePanel } from '/components/side-panel.js';
-import { summarizeRequest, summarizeResponse } from '/lib/summarize.js';
+import { summarizeRequest, summarizeResponse, analyzeComposition } from '/lib/summarize.js';
+import { renderDonut } from '/components/chart.js';
 
 const state = {
   filters: { hours: 24, search: '', models: [], status: '', minDuration: null, maxDuration: null, providerId: null },
@@ -184,14 +185,21 @@ async function openDetail(id) {
     const row = await api(`/api/logs/${id}`);
     const req = summarizeRequest(row.request_body);
     const resp = summarizeResponse(row.response_body);
-    panel.body.innerHTML = renderDetailBody(row, req, resp);
+    const comp = analyzeComposition(row.request_body, {
+      promptTokens: row.prompt_tokens,
+      cacheCreationTokens: row.cache_creation_tokens,
+      cacheReadTokens: row.cache_read_tokens,
+      totalTokens: row.total_tokens,
+    });
+    panel.body.innerHTML = renderDetailBody(row, req, resp, comp);
+    mountCompositionDonut(panel.body, comp);
     bindDetailToggles(panel.body, row);
   } catch (err) {
     panel.body.innerHTML = `<div style="color:var(--accent-red)">${err.message}</div>`;
   }
 }
 
-function renderDetailBody(row, req, resp) {
+function renderDetailBody(row, req, resp, comp) {
   return `
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
       <div class="card"><div class="label">模型</div><div style="margin-top:4px;color:#93c5fd;word-break:break-all">${escapeHtml(row.model)}</div></div>
@@ -209,11 +217,57 @@ function renderDetailBody(row, req, resp) {
         <div><div style="color:var(--text-tertiary);font-size:10px;text-transform:uppercase">Total</div><div style="margin-top:2px;font-weight:600">${formatTokens(row.total_tokens)}</div></div>
       </div>
     </div>
+    ${renderCompositionCard(comp)}
+    ${renderCacheCard(comp)}
     ${renderRequestSummary(req)}
     ${renderResponseSummary(resp)}
     <details style="margin-top:8px"><summary style="cursor:pointer;color:var(--text-secondary);font-size:11px;padding:6px 0">▶ Raw request</summary><div style="margin-top:8px">${renderJsonViewer(row.request_body)}</div></details>
     <details style="margin-top:4px"><summary style="cursor:pointer;color:var(--text-secondary);font-size:11px;padding:6px 0">▶ Raw response</summary><div style="margin-top:8px">${renderJsonViewer(row.response_body)}</div></details>
   `;
+}
+
+function renderCompositionCard(comp) {
+  if (!comp || comp.totalContext === 0) return '';
+  return `
+    <div class="card" style="margin-bottom:12px">
+      <div class="label" style="margin-bottom:8px">上下文组成 <span style="font-weight:400;color:var(--text-tertiary);font-size:10px">· 总 ${formatTokens(comp.totalContext)} · 估算</span></div>
+      <div id="composition-donut"></div>
+    </div>
+  `;
+}
+
+function renderCacheCard(comp) {
+  if (!comp || comp.totalContext === 0) return '';
+  const pct = (comp.hitRate * 100).toFixed(1);
+  return `
+    <div class="card" style="margin-bottom:12px">
+      <div class="label" style="margin-bottom:8px">Cache 命中</div>
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
+        <span style="font-size:24px;font-weight:600;color:${comp.hitRate >= 0.5 ? 'var(--accent-green)' : 'var(--accent-yellow)'}">${pct}%</span>
+        <span style="font-size:11px;color:var(--text-tertiary)">${formatTokens(comp.cacheRead.tokens)} / ${formatTokens(comp.totalContext)} tokens</span>
+      </div>
+      <div style="height:6px;background:var(--bg-overlay);border-radius:3px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:var(--accent-green)"></div>
+      </div>
+    </div>
+  `;
+}
+
+function mountCompositionDonut(root, comp) {
+  const el = root.querySelector('#composition-donut');
+  if (!el || !comp || comp.totalContext === 0) return;
+  const slices = [
+    { label: 'System', value: comp.system.tokens, display: formatTokens(comp.system.tokens), color: '#60a5fa' },
+    { label: 'Tools', value: comp.tools.tokens, display: formatTokens(comp.tools.tokens), color: '#a78bfa' },
+    { label: 'History', value: comp.history.tokens, display: formatTokens(comp.history.tokens), color: '#facc15' },
+    { label: 'Last user', value: comp.lastUser.tokens, display: formatTokens(comp.lastUser.tokens), color: '#fb923c' },
+    { label: 'Cache read', value: comp.cacheRead.tokens, display: formatTokens(comp.cacheRead.tokens), color: '#34d399' },
+  ].filter(s => s.value > 0);
+  renderDonut(el, {
+    slices,
+    total: comp.totalContext,
+    totalLabel: formatTokens(comp.totalContext),
+  });
 }
 
 function renderRequestSummary(req) {
