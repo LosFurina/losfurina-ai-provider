@@ -2,6 +2,7 @@
 import { api } from '/lib/api.js';
 import { renderJsonViewer } from '/components/json-viewer.js';
 import { openSidePanel } from '/components/side-panel.js';
+import { summarizeRequest, summarizeResponse } from '/lib/summarize.js';
 
 const state = {
   filters: { hours: 24, search: '', models: [], status: '', minDuration: null, maxDuration: null, providerId: null },
@@ -181,29 +182,115 @@ async function openDetail(id) {
   const panel = openSidePanel({ title: `请求详情 #${id}`, bodyHtml: '<div>加载中...</div>' });
   try {
     const row = await api(`/api/logs/${id}`);
-    panel.body.innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
-        <div class="card"><div class="label">模型</div><div style="margin-top:4px;color:#93c5fd">${row.model}</div></div>
-        <div class="card"><div class="label">状态</div><div style="margin-top:4px">${row.status}</div></div>
-        <div class="card"><div class="label">延迟</div><div style="margin-top:4px">${row.duration_ms}ms</div></div>
-      </div>
-      <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:12px;font-family:var(--font-mono)">${row.method} ${row.path}</div>
-      <div class="card" style="margin-bottom:16px">
-        <div class="label">Token 拆解</div>
-        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:8px;font-family:var(--font-mono);font-size:11px">
-          <div><div style="color:var(--text-tertiary);font-size:10px;text-transform:uppercase">Prompt</div><div style="margin-top:2px">${formatTokens(row.prompt_tokens)}</div></div>
-          <div><div style="color:var(--text-tertiary);font-size:10px;text-transform:uppercase">Completion</div><div style="margin-top:2px">${formatTokens(row.completion_tokens)}</div></div>
-          <div><div style="color:var(--text-tertiary);font-size:10px;text-transform:uppercase">Cache write</div><div style="margin-top:2px;color:var(--accent-blue)">${formatTokens(row.cache_creation_tokens)}</div></div>
-          <div><div style="color:var(--text-tertiary);font-size:10px;text-transform:uppercase">Cache read</div><div style="margin-top:2px;color:var(--accent-green)">${formatTokens(row.cache_read_tokens)}</div></div>
-          <div><div style="color:var(--text-tertiary);font-size:10px;text-transform:uppercase">Total</div><div style="margin-top:2px;font-weight:600">${formatTokens(row.total_tokens)}</div></div>
-        </div>
-      </div>
-      <div style="margin-bottom:12px"><div style="color:var(--text-secondary);font-size:11px;margin-bottom:6px">📥 Request</div>${renderJsonViewer(row.request_body)}</div>
-      <div><div style="color:var(--text-secondary);font-size:11px;margin-bottom:6px">📤 Response</div>${renderJsonViewer(row.response_body)}</div>
-    `;
+    const req = summarizeRequest(row.request_body);
+    const resp = summarizeResponse(row.response_body);
+    panel.body.innerHTML = renderDetailBody(row, req, resp);
+    bindDetailToggles(panel.body, row);
   } catch (err) {
     panel.body.innerHTML = `<div style="color:var(--accent-red)">${err.message}</div>`;
   }
+}
+
+function renderDetailBody(row, req, resp) {
+  return `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+      <div class="card"><div class="label">模型</div><div style="margin-top:4px;color:#93c5fd;word-break:break-all">${escapeHtml(row.model)}</div></div>
+      <div class="card"><div class="label">状态</div><div style="margin-top:4px">${row.status}</div></div>
+      <div class="card"><div class="label">延迟</div><div style="margin-top:4px">${row.duration_ms}ms</div></div>
+    </div>
+    <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:12px;font-family:var(--font-mono)">${row.method} ${row.path}</div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="label">Token 拆解</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:8px;font-family:var(--font-mono);font-size:11px">
+        <div><div style="color:var(--text-tertiary);font-size:10px;text-transform:uppercase">Prompt</div><div style="margin-top:2px">${formatTokens(row.prompt_tokens)}</div></div>
+        <div><div style="color:var(--text-tertiary);font-size:10px;text-transform:uppercase">Completion</div><div style="margin-top:2px">${formatTokens(row.completion_tokens)}</div></div>
+        <div><div style="color:var(--text-tertiary);font-size:10px;text-transform:uppercase">Cache write</div><div style="margin-top:2px;color:var(--accent-blue)">${formatTokens(row.cache_creation_tokens)}</div></div>
+        <div><div style="color:var(--text-tertiary);font-size:10px;text-transform:uppercase">Cache read</div><div style="margin-top:2px;color:var(--accent-green)">${formatTokens(row.cache_read_tokens)}</div></div>
+        <div><div style="color:var(--text-tertiary);font-size:10px;text-transform:uppercase">Total</div><div style="margin-top:2px;font-weight:600">${formatTokens(row.total_tokens)}</div></div>
+      </div>
+    </div>
+    ${renderRequestSummary(req)}
+    ${renderResponseSummary(resp)}
+    <details style="margin-top:8px"><summary style="cursor:pointer;color:var(--text-secondary);font-size:11px;padding:6px 0">▶ Raw request</summary><div style="margin-top:8px">${renderJsonViewer(row.request_body)}</div></details>
+    <details style="margin-top:4px"><summary style="cursor:pointer;color:var(--text-secondary);font-size:11px;padding:6px 0">▶ Raw response</summary><div style="margin-top:8px">${renderJsonViewer(row.response_body)}</div></details>
+  `;
+}
+
+function renderRequestSummary(req) {
+  if (!req) return '<div style="color:var(--text-tertiary);font-size:11px;margin-bottom:12px">无请求摘要（解析失败）</div>';
+  const params = [];
+  if (req.maxTokens != null) params.push(`max_tokens=${req.maxTokens}`);
+  if (req.temperature != null) params.push(`temp=${req.temperature}`);
+  if (req.stream) params.push('stream');
+  return `
+    <div class="card" style="margin-bottom:12px">
+      <div class="label" style="margin-bottom:8px">📥 请求摘要</div>
+      ${req.system ? `
+        <div style="margin-bottom:10px">
+          <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;margin-bottom:4px">System</div>
+          <div data-truncate style="font-size:11px;color:var(--text-secondary);font-family:var(--font-mono);max-height:80px;overflow:hidden;line-height:1.6;white-space:pre-wrap;word-break:break-word">${escapeHtml(req.system)}</div>
+          <a href="#" data-toggle-system style="font-size:10px;color:var(--accent-blue)">展开完整 system</a>
+        </div>
+      ` : ''}
+      ${req.toolCount > 0 ? `
+        <div style="margin-bottom:10px">
+          <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;margin-bottom:4px">Tools (${req.toolCount})</div>
+          <div style="font-size:11px;color:var(--text-secondary);font-family:var(--font-mono);line-height:1.6">${req.toolNames.slice(0, 8).map(escapeHtml).join(', ')}${req.toolNames.length > 8 ? ` …+${req.toolNames.length - 8}` : ''}</div>
+        </div>
+      ` : ''}
+      <div style="margin-bottom:10px">
+        <div style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;margin-bottom:4px">Messages (${req.messageCount} 轮)</div>
+        ${req.lastUserText ? `
+          <div style="font-size:10px;color:var(--text-tertiary);margin-top:6px">最后一条 user:</div>
+          <div data-truncate style="font-size:11px;color:var(--text-primary);font-family:var(--font-mono);max-height:120px;overflow:hidden;line-height:1.6;white-space:pre-wrap;word-break:break-word;margin-top:2px">${escapeHtml(req.lastUserText)}</div>
+          <a href="#" data-toggle-user style="font-size:10px;color:var(--accent-blue)">展开完整 user</a>
+        ` : '<div style="font-size:11px;color:var(--text-tertiary)">（无 user 消息）</div>'}
+      </div>
+      ${params.length ? `
+        <div style="font-size:11px;color:var(--text-tertiary);font-family:var(--font-mono)">${params.join(' · ')}</div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function renderResponseSummary(resp) {
+  if (!resp) return '<div style="color:var(--text-tertiary);font-size:11px;margin-bottom:12px">无响应摘要（解析失败）</div>';
+  if (resp.error) {
+    return `
+      <div class="card" style="margin-bottom:12px;border-color:var(--accent-red)">
+        <div class="label" style="color:var(--accent-red)">📤 响应错误</div>
+        <div style="font-size:11px;color:var(--accent-red);margin-top:6px;font-family:var(--font-mono);white-space:pre-wrap">${escapeHtml(resp.error)}</div>
+      </div>`;
+  }
+  return `
+    <div class="card" style="margin-bottom:12px">
+      <div class="label" style="margin-bottom:8px">📤 响应内容</div>
+      <div data-truncate style="font-size:12px;line-height:1.7;color:var(--text-primary);white-space:pre-wrap;word-break:break-word;max-height:200px;overflow:hidden">${escapeHtml(resp.text || '（空响应）')}</div>
+      ${resp.text && resp.text.length > 400 ? `<a href="#" data-toggle-resp style="font-size:10px;color:var(--accent-blue)">展开完整响应</a>` : ''}
+      ${resp.stopReason ? `<div style="margin-top:8px;font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono)">stop_reason: ${escapeHtml(resp.stopReason)}</div>` : ''}
+    </div>
+  `;
+}
+
+function bindDetailToggles(root, row) {
+  // Generic "expand truncated block" toggle
+  for (const link of root.querySelectorAll('[data-toggle-system], [data-toggle-user], [data-toggle-resp]')) {
+    link.onclick = (e) => {
+      e.preventDefault();
+      const block = link.previousElementSibling;
+      if (!block) return;
+      const expanded = block.style.maxHeight === 'none';
+      block.style.maxHeight = expanded ? '' : 'none';
+      link.textContent = expanded
+        ? link.textContent.replace('折叠', '展开')
+        : link.textContent.replace('展开', '折叠');
+    };
+  }
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function formatTokens(n) {
@@ -255,11 +342,6 @@ function renderSavedViews(container) {
       renderSavedViews(container);
     };
   });
-}
-
-function escapeHtml(s) {
-  if (s == null) return '';
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function loadSavedView(name) {
