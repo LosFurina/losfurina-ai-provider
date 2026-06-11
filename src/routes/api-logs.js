@@ -61,8 +61,6 @@ export async function handleLogsApi(request, env) {
       statusBucket: url.searchParams.get('status') || undefined,
       minDuration: numParam(url, 'min_duration'),
       maxDuration: numParam(url, 'max_duration'),
-      minCost: numParam(url, 'min_cost'),
-      maxCost: numParam(url, 'max_cost'),
       search: url.searchParams.get('search') || undefined,
       providerId: url.searchParams.has('provider_id') ? parseInt(url.searchParams.get('provider_id'), 10) : undefined,
     };

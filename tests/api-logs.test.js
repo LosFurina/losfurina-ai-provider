@@ -6,13 +6,13 @@ async function seed(db) {
   await db.exec(`DELETE FROM logs`);
   const now = new Date().toISOString();
   await db.prepare(
-    `INSERT INTO logs (timestamp, model, method, path, status, duration_ms, prompt_tokens, completion_tokens, total_tokens, request_body, response_body, cost_usd)
-     VALUES (?, ?, 'POST', '/v1/chat/completions', ?, ?, 100, 200, 300, ?, ?, ?)`
-  ).bind(now, 'gpt-4o', 200, 800, '{"q":"hello"}', '{"a":"world"}', 0.05).run();
+    `INSERT INTO logs (timestamp, model, method, path, status, duration_ms, prompt_tokens, completion_tokens, total_tokens, request_body, response_body)
+     VALUES (?, ?, 'POST', '/v1/chat/completions', ?, ?, 100, 200, 300, ?, ?)`
+  ).bind(now, 'gpt-4o', 200, 800, '{"q":"hello"}', '{"a":"world"}').run();
   await db.prepare(
-    `INSERT INTO logs (timestamp, model, method, path, status, duration_ms, prompt_tokens, completion_tokens, total_tokens, request_body, response_body, cost_usd)
-     VALUES (?, ?, 'POST', '/v1/chat/completions', ?, ?, 200, 400, 600, ?, ?, ?)`
-  ).bind(now, 'claude-4', 429, 300, '{"q":"big"}', '{}', 0.0).run();
+    `INSERT INTO logs (timestamp, model, method, path, status, duration_ms, prompt_tokens, completion_tokens, total_tokens, request_body, response_body)
+     VALUES (?, ?, 'POST', '/v1/chat/completions', ?, ?, 200, 400, 600, ?, ?)`
+  ).bind(now, 'claude-4', 429, 300, '{"q":"big"}', '{}').run();
 }
 
 describe('queryLogs filters', () => {
@@ -34,12 +34,6 @@ describe('queryLogs filters', () => {
     const rows = await queryLogs(env.DB, { hours: 24, search: 'big' });
     expect(rows.length).toBe(1);
     expect(rows[0].model).toBe('claude-4');
-  });
-
-  it('filters by min cost', async () => {
-    const rows = await queryLogs(env.DB, { hours: 24, minCost: 0.01 });
-    expect(rows.length).toBe(1);
-    expect(rows[0].model).toBe('gpt-4o');
   });
 
   it('cursor-based pagination returns next page', async () => {

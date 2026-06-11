@@ -8,21 +8,21 @@ async function seed(db) {
   const earlier = new Date(Date.now() - 25 * 3600 * 1000).toISOString();
   // 2 successes today, 1 error today, 1 success yesterday (outside 24h window)
   await db.prepare(
-    `INSERT INTO logs (timestamp, model, method, path, status, duration_ms, prompt_tokens, completion_tokens, total_tokens, cost_usd, request_body, response_body)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
-  ).bind(now, 'gpt-4o', 'POST', '/v1/c', 200, 800, 100, 200, 300, 0.05, '{}', '{}').run();
+    `INSERT INTO logs (timestamp, model, method, path, status, duration_ms, prompt_tokens, completion_tokens, total_tokens, request_body, response_body)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+  ).bind(now, 'gpt-4o', 'POST', '/v1/c', 200, 800, 100, 200, 300, '', '{}').run();
   await db.prepare(
-    `INSERT INTO logs (timestamp, model, method, path, status, duration_ms, prompt_tokens, completion_tokens, total_tokens, cost_usd, request_body, response_body)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
-  ).bind(now, 'gpt-4o', 'POST', '/v1/c', 200, 1200, 100, 200, 300, 0.05, '{}', '{}').run();
+    `INSERT INTO logs (timestamp, model, method, path, status, duration_ms, prompt_tokens, completion_tokens, total_tokens, request_body, response_body)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+  ).bind(now, 'gpt-4o', 'POST', '/v1/c', 200, 1200, 100, 200, 300, '{}', '{}').run();
   await db.prepare(
-    `INSERT INTO logs (timestamp, model, method, path, status, duration_ms, prompt_tokens, completion_tokens, total_tokens, cost_usd, request_body, response_body)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
-  ).bind(now, 'gpt-4o', 'POST', '/v1/c', 500, 200, 0, 0, 0, 0, '{}', '{}').run();
+    `INSERT INTO logs (timestamp, model, method, path, status, duration_ms, prompt_tokens, completion_tokens, total_tokens, request_body, response_body)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+  ).bind(now, 'gpt-4o', 'POST', '/v1/c', 500, 200, 0, 0, 0, '{}', '{}').run();
   await db.prepare(
-    `INSERT INTO logs (timestamp, model, method, path, status, duration_ms, prompt_tokens, completion_tokens, total_tokens, cost_usd, request_body, response_body)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
-  ).bind(earlier, 'gpt-4o', 'POST', '/v1/c', 200, 500, 100, 200, 300, 0.05, '{}', '{}').run();
+    `INSERT INTO logs (timestamp, model, method, path, status, duration_ms, prompt_tokens, completion_tokens, total_tokens, request_body, response_body)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+  ).bind(earlier, 'gpt-4o', 'POST', '/v1/c', 200, 500, 100, 200, 300, '{}', '{}').run();
 }
 
 describe('queryKpis', () => {
@@ -34,7 +34,6 @@ describe('queryKpis', () => {
     expect(k.error_count).toBe(1);
     expect(Math.round(k.success_rate * 1000) / 1000).toBe(0.667);
     expect(k.total_tokens).toBe(600);
-    expect(Math.round(k.total_cost * 100) / 100).toBe(0.10);
     expect(k.avg_latency).toBeGreaterThan(700);
   });
 

@@ -1,38 +1,8 @@
 // src/routes/api-admin.js
-import { invalidatePricingCache } from '../lib/pricing.js';
 
 export async function handleAdminApi(request, env) {
   const url = new URL(request.url);
   const method = request.method;
-
-  // /api/admin/pricing
-  if (url.pathname === '/api/admin/pricing' && method === 'GET') {
-    const { results } = await env.DB.prepare('SELECT * FROM pricing ORDER BY model').all();
-    return json(results);
-  }
-  if (url.pathname === '/api/admin/pricing' && method === 'PUT') {
-    const body = await request.json();
-    const { model, prompt_per_1k, completion_per_1k } = body;
-    if (!model || typeof prompt_per_1k !== 'number' || typeof completion_per_1k !== 'number') {
-      return json({ error: 'invalid_body' }, 400);
-    }
-    await env.DB.prepare(
-      `INSERT INTO pricing (model, prompt_per_1k, completion_per_1k, updated_at)
-       VALUES (?, ?, ?, datetime('now'))
-       ON CONFLICT(model) DO UPDATE SET
-         prompt_per_1k = excluded.prompt_per_1k,
-         completion_per_1k = excluded.completion_per_1k,
-         updated_at = excluded.updated_at`
-    ).bind(model, prompt_per_1k, completion_per_1k).run();
-    invalidatePricingCache();
-    return json({ ok: true });
-  }
-  if (url.pathname.match(/^\/api\/admin\/pricing\/[^/]+$/) && method === 'DELETE') {
-    const model = decodeURIComponent(url.pathname.split('/').pop());
-    await env.DB.prepare('DELETE FROM pricing WHERE model = ?').bind(model).run();
-    invalidatePricingCache();
-    return json({ ok: true });
-  }
 
   // /api/admin/alerts
   if (url.pathname === '/api/admin/alerts' && method === 'GET') {

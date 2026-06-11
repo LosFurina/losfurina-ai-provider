@@ -1,6 +1,5 @@
 // src/routes/proxy.js
 import { resolveProvider } from '../lib/router.js';
-import { calculateCost } from '../lib/pricing.js';
 import { parseUsage } from '../lib/usage.js';
 import { insertLog } from '../db.js';
 import { formatBatchLog } from '../logger.js';
@@ -61,8 +60,6 @@ export async function handleProxy(request, config, env, ctx) {
     const usage = parseUsage(responseBody, contentType);
     const { promptTokens, completionTokens, totalTokens, cacheCreationTokens, cacheReadTokens } = usage;
 
-    const costUsd = await calculateCost(env.DB, rawModel, promptTokens, completionTokens);
-
     const logEntry = {
       timestamp: new Date().toISOString(),
       model,
@@ -77,7 +74,6 @@ export async function handleProxy(request, config, env, ctx) {
       cacheReadTokens,
       requestBody,
       responseBody,
-      costUsd,
       source: request.headers.get('X-Playground') ? 'playground' : 'proxy',
       providerId: provider.id,
     };

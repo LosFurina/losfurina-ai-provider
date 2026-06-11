@@ -3,19 +3,19 @@ export async function insertLog(db, logEntry) {
     timestamp, model, method, path, status, durationMs,
     promptTokens, completionTokens, totalTokens,
     requestBody, responseBody,
-    costUsd = 0, source = 'proxy', providerId = null,
+    source = 'proxy', providerId = null,
     cacheCreationTokens = 0, cacheReadTokens = 0,
   } = logEntry;
   await db.prepare(
     `INSERT INTO logs (timestamp, model, method, path, status, duration_ms,
                        prompt_tokens, completion_tokens, total_tokens,
-                       request_body, response_body, cost_usd, source, provider_id,
+                       request_body, response_body, source, provider_id,
                        cache_creation_tokens, cache_read_tokens)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     timestamp, model, method, path, status, durationMs,
     promptTokens, completionTokens, totalTokens,
-    requestBody, responseBody, costUsd, source, providerId,
+    requestBody, responseBody, source, providerId,
     cacheCreationTokens, cacheReadTokens
   ).run();
 }
@@ -29,8 +29,6 @@ export async function queryLogs(db, opts = {}) {
     statusBucket,
     minDuration,
     maxDuration,
-    minCost,
-    maxCost,
     search,
     providerId,
   } = opts;
@@ -48,8 +46,6 @@ export async function queryLogs(db, opts = {}) {
   if (statusBucket === '5xx') { where.push('status BETWEEN 500 AND 599'); }
   if (typeof minDuration === 'number') { where.push('duration_ms >= ?'); args.push(minDuration); }
   if (typeof maxDuration === 'number') { where.push('duration_ms <= ?'); args.push(maxDuration); }
-  if (typeof minCost === 'number') { where.push('cost_usd >= ?'); args.push(minCost); }
-  if (typeof maxCost === 'number') { where.push('cost_usd <= ?'); args.push(maxCost); }
   if (search) {
     where.push('(request_body LIKE ? OR response_body LIKE ?)');
     const pat = `%${search.replace(/[%_]/g, '\\$&')}%`;
@@ -91,7 +87,6 @@ async function aggregateWindow(db, startIso, endIso) {
        COUNT(*)                                  AS request_count,
        SUM(CASE WHEN status >= 400 THEN 1 ELSE 0 END) AS error_count,
        COALESCE(SUM(total_tokens), 0)            AS total_tokens,
-       COALESCE(SUM(cost_usd), 0)                AS total_cost,
        COALESCE(AVG(duration_ms), 0)             AS avg_latency
      FROM logs
      WHERE timestamp >= ? AND timestamp < ?`
@@ -104,7 +99,6 @@ async function aggregateWindow(db, startIso, endIso) {
     error_count: row.error_count || 0,
     success_rate,
     total_tokens: row.total_tokens || 0,
-    total_cost: row.total_cost || 0,
     avg_latency: Math.round(row.avg_latency || 0),
   };
 }
@@ -118,7 +112,6 @@ export async function queryStats(db, { hours = 24 } = {}) {
        SUM(total_tokens) AS total_tokens,
        SUM(prompt_tokens) AS prompt_tokens,
        SUM(completion_tokens) AS completion_tokens,
-       SUM(cost_usd) AS cost_usd,
        ROUND(AVG(duration_ms), 1) AS avg_duration_ms
      FROM logs
      WHERE timestamp >= ?
@@ -136,7 +129,6 @@ export async function queryTimeseries(db, { hours = 24, granularity = 'hour', me
 
   const metricSql = {
     count: 'COUNT(*)',
-    cost: 'COALESCE(SUM(cost_usd), 0)',
     tokens: 'COALESCE(SUM(total_tokens), 0)',
     latency_avg: 'COALESCE(AVG(duration_ms), 0)',
   }[metric] || 'COUNT(*)';

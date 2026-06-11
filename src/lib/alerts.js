@@ -9,10 +9,6 @@ export function evaluateRule(rule, { logEntry = {}, snapshot = {} }) {
   let context = {};
 
   switch (rule.metric) {
-    case 'request_cost':
-      actualValue = logEntry.costUsd ?? 0;
-      context = { model: logEntry.model, path: logEntry.path };
-      break;
     case 'latency_ms':
       actualValue = logEntry.durationMs ?? 0;
       context = { model: logEntry.model };
@@ -20,9 +16,6 @@ export function evaluateRule(rule, { logEntry = {}, snapshot = {} }) {
     case 'error_rate':
       actualValue = snapshot.errorRate ?? 0;
       context = { window_min: rule.window_min };
-      break;
-    case 'daily_cost':
-      actualValue = snapshot.dailyCost ?? 0;
       break;
     case 'provider_unhealthy':
       if (snapshot.providerUnhealthyName) {
@@ -47,14 +40,6 @@ export async function buildSnapshot(db, rule, now = Date.now()) {
     ).bind(cutoff).first();
     const total = row?.total || 0;
     return { errorRate: total > 0 ? (row.errors || 0) / total : 0 };
-  }
-  if (rule.metric === 'daily_cost') {
-    const dayStart = new Date(now);
-    dayStart.setUTCHours(0, 0, 0, 0);
-    const row = await db.prepare(
-      `SELECT COALESCE(SUM(cost_usd), 0) AS dailyCost FROM logs WHERE timestamp >= ?`
-    ).bind(dayStart.toISOString()).first();
-    return { dailyCost: row?.dailyCost || 0 };
   }
   return {};
 }
