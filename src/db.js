@@ -4,16 +4,19 @@ export async function insertLog(db, logEntry) {
     promptTokens, completionTokens, totalTokens,
     requestBody, responseBody,
     costUsd = 0, source = 'proxy', providerId = null,
+    cacheCreationTokens = 0, cacheReadTokens = 0,
   } = logEntry;
   await db.prepare(
     `INSERT INTO logs (timestamp, model, method, path, status, duration_ms,
                        prompt_tokens, completion_tokens, total_tokens,
-                       request_body, response_body, cost_usd, source, provider_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                       request_body, response_body, cost_usd, source, provider_id,
+                       cache_creation_tokens, cache_read_tokens)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     timestamp, model, method, path, status, durationMs,
     promptTokens, completionTokens, totalTokens,
-    requestBody, responseBody, costUsd, source, providerId
+    requestBody, responseBody, costUsd, source, providerId,
+    cacheCreationTokens, cacheReadTokens
   ).run();
 }
 

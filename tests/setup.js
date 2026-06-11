@@ -17,7 +17,9 @@ const DDL = [
     response_body      TEXT,
     cost_usd           REAL DEFAULT 0,
     source             TEXT DEFAULT 'proxy',
-    provider_id        INTEGER
+    provider_id        INTEGER,
+    cache_creation_tokens INTEGER DEFAULT 0,
+    cache_read_tokens     INTEGER DEFAULT 0
   )`,
   `CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp)`,
   `CREATE INDEX IF NOT EXISTS idx_logs_model ON logs(model)`,
