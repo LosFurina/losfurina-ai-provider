@@ -149,7 +149,7 @@ button { font-family: inherit; cursor: pointer; }
 /* Log list */
 .log-grid {
   display: grid;
-  grid-template-columns: 80px 110px 60px 70px 80px 1fr;
+  grid-template-columns: 80px 1fr 60px 70px 80px;
   align-items: center;
 }
 .log-header {

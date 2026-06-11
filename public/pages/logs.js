@@ -28,7 +28,7 @@ export function renderLogs(container) {
     <div style="padding:16px 24px;border-bottom:1px solid var(--border-subtle)" id="filter-bar"></div>
     <div class="page-body" id="logs-body">
       <div class="log-grid log-header">
-        <span>时间</span><span>模型</span><span>状态</span><span>延迟</span><span>Tokens</span><span>路径</span>
+        <span>时间</span><span>模型</span><span>状态</span><span>延迟</span><span>Tokens</span>
       </div>
       <div id="logs-list">
         <div class="skeleton" style="height:48px;margin:8px 0"></div>
@@ -159,11 +159,10 @@ function renderRows(listEl) {
     return `
       <div class="log-grid log-row ${errorRow}" data-id="${r.id}">
         <span class="mono">${time}</span>
-        <span><span class="tag ${modelClass}">${r.model}</span></span>
+        <span style="overflow:hidden;min-width:0"><span class="tag ${modelClass}" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">${r.model}</span></span>
         <span class="mono ${statusClass}">${r.status}</span>
         <span class="mono">${r.duration_ms}ms</span>
         <span class="mono">${r.total_tokens || '—'}</span>
-        <span class="mono" style="color:var(--text-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.path}</span>
       </div>`;
   }).join('');
   listEl.querySelectorAll('.log-row').forEach(row => {
@@ -188,6 +187,7 @@ async function openDetail(id) {
         <div class="card"><div class="label">状态</div><div style="margin-top:4px">${row.status}</div></div>
         <div class="card"><div class="label">延迟</div><div style="margin-top:4px">${row.duration_ms}ms</div></div>
       </div>
+      <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:12px;font-family:var(--font-mono)">${row.method} ${row.path}</div>
       <div class="card" style="margin-bottom:16px">
         <div class="label">Token 拆解</div>
         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:8px;font-family:var(--font-mono);font-size:11px">
