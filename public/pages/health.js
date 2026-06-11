@@ -139,7 +139,7 @@ function openProviderDetail(id, providers, histMap) {
       <div class="card" style="margin-bottom:12px">
         <div class="label">支持的模型 (${p.model_count})</div>
         <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">
-          ${(p.models || []).map(m => `<span class="tag tag-model-default">${escape(m)}</span>`).join('')}
+          ${(p.prefixed_models || p.models || []).map(m => `<span class="tag tag-model-default">${escape(m)}</span>`).join('')}
         </div>
       </div>
       <div class="card">

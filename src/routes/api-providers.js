@@ -44,7 +44,8 @@ export async function handleProvidersApi(request, env, ctx) {
       ...p,
       api_key: maskKey(p.api_key),
       uptime_24h: uptime,
-      model_count: Array.isArray(p.models) ? p.models.length : 0,
+      model_count: Object.keys(p.model_map || {}).length || (Array.isArray(p.models) ? p.models.length : 0),
+      prefixed_models: Object.keys(p.model_map || {}),
     };
   }));
   return jsonResponse(enriched);
