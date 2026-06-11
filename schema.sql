@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS providers (
   priority          INTEGER NOT NULL DEFAULT 100,
   enabled           INTEGER NOT NULL DEFAULT 1,
   models            TEXT DEFAULT '[]',
+  model_map         TEXT DEFAULT '{}',
   health_status     TEXT DEFAULT 'unknown',
   last_latency_ms   INTEGER,
   last_checked_at   TEXT,
