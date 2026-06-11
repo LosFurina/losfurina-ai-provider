@@ -57,7 +57,11 @@ export async function queryLogs(db, opts = {}) {
   }
   if (cursor) { where.push('id < ?'); args.push(cursor); }
 
-  const sql = `SELECT * FROM logs WHERE ${where.join(' AND ')} ORDER BY id DESC LIMIT ?`;
+  const sql = `SELECT id, timestamp, model, method, path, status, duration_ms,
+                      prompt_tokens, completion_tokens, total_tokens,
+                      cache_creation_tokens, cache_read_tokens,
+                      source, provider_id
+               FROM logs WHERE ${where.join(' AND ')} ORDER BY id DESC LIMIT ?`;
   args.push(limit);
   const { results } = await db.prepare(sql).bind(...args).all();
   return results;

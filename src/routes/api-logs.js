@@ -19,7 +19,7 @@ export async function handleLogsApi(request, env) {
       const sinceClause = since ? 'AND timestamp > ?' : '';
       const sinceArgs = since ? [since] : [];
       const { results: newLogs } = await env.DB.prepare(
-        `SELECT * FROM logs WHERE 1=1 ${sinceClause} ORDER BY id DESC LIMIT 50`
+        `SELECT id FROM logs WHERE 1=1 ${sinceClause} ORDER BY id DESC LIMIT 50`
       ).bind(...sinceArgs).all();
 
       const { results: alerts } = await env.DB.prepare(
