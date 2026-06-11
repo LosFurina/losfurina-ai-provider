@@ -11,7 +11,6 @@ CREATE TABLE IF NOT EXISTS logs (
   total_tokens       INTEGER DEFAULT 0,
   request_body       TEXT,
   response_body      TEXT,
-  cost_usd           REAL DEFAULT 0,
   source             TEXT DEFAULT 'proxy',
   provider_id        INTEGER,
   cache_creation_tokens INTEGER DEFAULT 0,
@@ -21,7 +20,6 @@ CREATE TABLE IF NOT EXISTS logs (
 CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp);
 CREATE INDEX IF NOT EXISTS idx_logs_model ON logs(model);
 CREATE INDEX IF NOT EXISTS idx_logs_status ON logs(status);
-CREATE INDEX IF NOT EXISTS idx_logs_cost ON logs(cost_usd);
 CREATE INDEX IF NOT EXISTS idx_logs_provider ON logs(provider_id);
 
 CREATE TABLE IF NOT EXISTS providers (
@@ -57,13 +55,6 @@ CREATE TABLE IF NOT EXISTS provider_health_logs (
 
 CREATE INDEX IF NOT EXISTS idx_health_provider_time ON provider_health_logs(provider_id, checked_at);
 
-CREATE TABLE IF NOT EXISTS pricing (
-  model              TEXT PRIMARY KEY,
-  prompt_per_1k      REAL NOT NULL,
-  completion_per_1k  REAL NOT NULL,
-  updated_at         TEXT NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS alert_rules (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   name         TEXT NOT NULL,
@@ -88,9 +79,3 @@ CREATE TABLE IF NOT EXISTS alert_triggers (
 CREATE INDEX IF NOT EXISTS idx_alert_triggers_unack
   ON alert_triggers(acknowledged, triggered_at);
 
-INSERT OR IGNORE INTO pricing (model, prompt_per_1k, completion_per_1k, updated_at) VALUES
-  ('gpt-4o',                0.0025,  0.010, datetime('now')),
-  ('gpt-4o-mini',           0.00015, 0.0006, datetime('now')),
-  ('claude-4',              0.003,   0.015,  datetime('now')),
-  ('claude-3-5-sonnet',     0.003,   0.015,  datetime('now')),
-  ('deepseek-v3',           0.00027, 0.0011, datetime('now'));
