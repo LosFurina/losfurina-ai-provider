@@ -72,6 +72,11 @@ export async function queryLogById(db, id) {
   return row || null;
 }
 
+export async function purgeOldLogs(db, daysToKeep = 7) {
+  const cutoff = new Date(Date.now() - daysToKeep * 86400 * 1000).toISOString();
+  await db.prepare(`DELETE FROM logs WHERE timestamp < ?`).bind(cutoff).run();
+}
+
 export async function queryKpis(db, { hours = 24, includePrevious = false } = {}) {
   const now = Date.now();
   const cutoff = new Date(now - hours * 3600 * 1000).toISOString();

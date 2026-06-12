@@ -72,8 +72,8 @@ export async function handleProxy(request, config, env, ctx) {
       totalTokens,
       cacheCreationTokens,
       cacheReadTokens,
-      requestBody,
-      responseBody,
+      requestBody: truncateBody(requestBody),
+      responseBody: truncateBody(responseBody),
       source: request.headers.get('X-Playground') ? 'playground' : 'proxy',
       providerId: provider.id,
     };
@@ -99,6 +99,14 @@ export async function handleProxy(request, config, env, ctx) {
     console.error('Proxy error:', err.message);
     return jsonError(502, 'proxy_error', err.message);
   }
+}
+
+const BODY_LIMIT_BYTES = 4096;
+
+function truncateBody(body) {
+  if (body == null) return body;
+  if (body.length <= BODY_LIMIT_BYTES) return body;
+  return body.slice(0, BODY_LIMIT_BYTES) + `\n…[truncated, ${body.length - BODY_LIMIT_BYTES} bytes omitted]`;
 }
 
 function joinUrl(base, pathname) {

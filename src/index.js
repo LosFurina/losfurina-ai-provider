@@ -7,6 +7,7 @@ import { handleAdminApi } from './routes/api-admin.js';
 import { handlePlayground } from './routes/api-playground.js';
 import { handleModelsList } from './routes/models.js';
 import { probeAllProviders, purgeOldHealthLogs } from './lib/healthcheck.js';
+import { purgeOldLogs } from './db.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -60,6 +61,7 @@ export default {
     const minutes = new Date().getUTCMinutes();
     if (minutes < 5) {
       await purgeOldHealthLogs(env, 7);
+      await purgeOldLogs(env.DB, 7);
     }
   },
 };

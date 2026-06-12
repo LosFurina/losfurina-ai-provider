@@ -29,6 +29,10 @@ export function renderLineChart(container, { buckets, series, height = 200, form
     });
   }
 
+  const containerId = container.id || '(no-id)';
+  const yValues = formatY
+    ? (u, splits) => splits.map(s => formatY(s))
+    : undefined;
   const opts = {
     width: container.clientWidth || 800,
     height,
@@ -36,7 +40,7 @@ export function renderLineChart(container, { buckets, series, height = 200, form
     scales: { x: { time: true } },
     axes: [
       { stroke: THEME.text, grid: { stroke: THEME.grid } },
-      { stroke: THEME.text, grid: { stroke: THEME.grid }, values: formatY ? (u, vals) => vals.map(formatY) : undefined },
+      { stroke: THEME.text, grid: { stroke: THEME.grid }, size: 60, values: yValues },
     ],
     series: seriesConfigs,
     legend: { show: series.length > 1 },
