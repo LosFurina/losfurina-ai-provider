@@ -118,7 +118,7 @@ async function loadTokenChart() {
     buckets: data.buckets,
     series: [{ label: 'Tokens', extract: b => b.value }],
     height: 200,
-    formatY: v => formatNum(v || 0),
+    formatY: formatNum,
   });
 }
 
@@ -179,7 +179,7 @@ async function loadCacheTrend() {
     buckets: data.buckets,
     series: [{ label: '上下文 token', extract: b => b.value }],
     height: 200,
-    formatY: v => formatNum(v || 0),
+    formatY: formatNum,
   });
 }
 
@@ -212,7 +212,9 @@ function escape(s) {
 }
 
 function formatNum(n) {
-  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
-  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
-  return String(n);
+  const v = Number(n);
+  if (!isFinite(v) || v === 0) return '0';
+  if (v >= 1e6) return (v / 1e6).toFixed(2) + 'M';
+  if (v >= 1e3) return (v / 1e3).toFixed(1) + 'K';
+  return String(v);
 }
