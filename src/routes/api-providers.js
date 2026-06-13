@@ -27,9 +27,60 @@ export async function handleProvidersApi(request, env, ctx) {
     return jsonResponse({ buckets: results });
   }
 
+  // POST /api/providers — create
+  if (url.pathname === '/api/providers' && method === 'POST') {
+    const body = await safeJson(request);
+    const err = validate(body, true);
+    if (err) return jsonResponse({ error: err }, 400);
+    const now = new Date().toISOString();
+    const result = await env.DB.prepare(
+      `INSERT INTO providers (name, base_url, api_key, priority, enabled, models, model_map, health_status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, '{}', 'unknown', ?, ?)`
+    ).bind(
+      body.name.trim(),
+      body.base_url.trim(),
+      body.api_key.trim(),
+      body.priority ?? 100,
+      body.enabled === false ? 0 : 1,
+      JSON.stringify(normalizeModels(body.models)),
+      now, now,
+    ).run();
+    return jsonResponse({ id: result.meta.last_row_id }, 201);
+  }
+
+  // PATCH /api/providers/:id — update
+  // DELETE /api/providers/:id — delete
+  const idMatch = url.pathname.match(/^\/api\/providers\/(\d+)$/);
+  if (idMatch) {
+    const id = parseInt(idMatch[1], 10);
+    if (method === 'DELETE') {
+      await env.DB.prepare(`DELETE FROM providers WHERE id = ?`).bind(id).run();
+      return jsonResponse({ ok: true });
+    }
+    if (method === 'PATCH') {
+      const body = await safeJson(request);
+      const err = validate(body, false);
+      if (err) return jsonResponse({ error: err }, 400);
+      const sets = [];
+      const args = [];
+      if (body.name !== undefined)     { sets.push('name = ?');      args.push(body.name.trim()); }
+      if (body.base_url !== undefined) { sets.push('base_url = ?');  args.push(body.base_url.trim()); }
+      if (body.api_key !== undefined && body.api_key !== '')
+                                       { sets.push('api_key = ?');   args.push(body.api_key.trim()); }
+      if (body.priority !== undefined) { sets.push('priority = ?');  args.push(body.priority); }
+      if (body.enabled !== undefined)  { sets.push('enabled = ?');   args.push(body.enabled ? 1 : 0); }
+      if (body.models !== undefined)   { sets.push('models = ?');    args.push(JSON.stringify(normalizeModels(body.models))); }
+      if (!sets.length) return jsonResponse({ error: 'no fields to update' }, 400);
+      sets.push('updated_at = ?');
+      args.push(new Date().toISOString());
+      args.push(id);
+      await env.DB.prepare(`UPDATE providers SET ${sets.join(', ')} WHERE id = ?`).bind(...args).run();
+      return jsonResponse({ ok: true });
+    }
+  }
+
   // GET /api/providers
   const list = await listProviders(env.DB, { includeDisabled: true });
-  // Compute uptime_24h for each
   const cutoff = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const enriched = await Promise.all(list.map(async p => {
     const { results } = await env.DB.prepare(
@@ -49,6 +100,33 @@ export async function handleProvidersApi(request, env, ctx) {
     };
   }));
   return jsonResponse(enriched);
+}
+
+async function safeJson(request) {
+  try { return await request.json(); } catch { return {}; }
+}
+
+function validate(body, requireAll) {
+  if (!body || typeof body !== 'object') return 'invalid body';
+  const required = ['name', 'base_url', 'api_key'];
+  if (requireAll) {
+    for (const k of required) {
+      if (!body[k] || typeof body[k] !== 'string' || !body[k].trim()) return `missing field: ${k}`;
+    }
+  }
+  if (body.base_url !== undefined && body.base_url && !/^https?:\/\//.test(body.base_url)) {
+    return 'base_url must start with http(s)://';
+  }
+  if (body.priority !== undefined && (typeof body.priority !== 'number' || body.priority < 0)) {
+    return 'priority must be a non-negative number';
+  }
+  return null;
+}
+
+function normalizeModels(models) {
+  if (Array.isArray(models)) return models.map(m => String(m).trim()).filter(Boolean);
+  if (typeof models === 'string') return models.split(',').map(s => s.trim()).filter(Boolean);
+  return [];
 }
 
 function maskKey(key) {

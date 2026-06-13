@@ -2,6 +2,7 @@
 import { api } from '/lib/api.js';
 import { renderStatusSparkline, renderLatencyLineSparkline } from '/components/sparkline.js';
 import { openSidePanel } from '/components/side-panel.js';
+import { showToast } from '/components/toast.js';
 
 export function renderHealth(container) {
   container.innerHTML = `
@@ -11,6 +12,7 @@ export function renderHealth(container) {
         <div class="page-subtitle">Provider 后端可用性监控</div>
       </div>
       <div style="display:flex;gap:8px">
+        <button class="filter-chip" id="new-provider">+ 新建 Provider</button>
         <button class="filter-chip" id="manual-probe">立即探测</button>
         <span style="font-size:11px;color:var(--text-tertiary);align-self:center" id="status-summary"></span>
       </div>
@@ -21,6 +23,8 @@ export function renderHealth(container) {
     </div>
   `;
 
+  container.querySelector('#new-provider').onclick = () => openProviderForm(null);
+
   container.querySelector('#manual-probe').onclick = async () => {
     const btn = container.querySelector('#manual-probe');
     const originalLabel = btn.textContent;
@@ -30,7 +34,7 @@ export function renderHealth(container) {
       await api('/api/providers/probe', { method: 'POST' });
       await load();
     } catch (e) {
-      alert('探测失败：' + e.message);
+      showToast('探测失败：' + e.message, { type: 'error' });
     } finally {
       btn.disabled = false;
       btn.textContent = originalLabel;
@@ -59,10 +63,10 @@ async function renderCards(providers) {
   const body = document.getElementById('health-body');
   if (!providers.length) {
     body.innerHTML = emptyState();
+    body.querySelector('#empty-new')?.addEventListener('click', () => openProviderForm(null));
     return;
   }
 
-  // Fetch 24h history for each enabled provider in parallel
   const histories = await Promise.all(providers.map(async p => {
     if (!p.enabled) return { id: p.id, buckets: [] };
     try {
@@ -77,9 +81,27 @@ async function renderCards(providers) {
   body.innerHTML = providers.map(p => providerCard(p, histMap.get(p.id) || [])).join('');
 
   body.querySelectorAll('[data-provider]').forEach(card => {
+    const id = parseInt(card.dataset.provider, 10);
+    card.querySelector('[data-action="edit"]')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const p = providers.find(x => x.id === id);
+      openProviderForm(p);
+    });
+    card.querySelector('[data-action="delete"]')?.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const p = providers.find(x => x.id === id);
+      if (!confirm(`删除 provider "${p.name}"？此操作不可恢复。`)) return;
+      try {
+        await api(`/api/providers/${id}`, { method: 'DELETE' });
+        showToast('已删除');
+        await load();
+      } catch (err) {
+        showToast('删除失败：' + err.message, { type: 'error' });
+      }
+    });
     card.onclick = (e) => {
       if (e.target.closest('button')) return;
-      openProviderDetail(parseInt(card.dataset.provider, 10), providers, histMap);
+      openProviderDetail(id, providers, histMap);
     };
   });
 }
@@ -103,7 +125,11 @@ function providerCard(p, healthLogs) {
           </div>
           <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-tertiary);margin-top:4px">${escape(p.base_url)}</div>
         </div>
-        <div style="text-align:right">
+        <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <div style="display:flex;gap:6px">
+            <button class="filter-chip" data-action="edit" style="padding:2px 8px;font-size:11px">编辑</button>
+            <button class="filter-chip" data-action="delete" style="padding:2px 8px;font-size:11px;color:var(--accent-red)">删除</button>
+          </div>
           <div style="font-size:11px;color:var(--text-secondary)">上次探测 ${checkedStr}</div>
           <div style="font-size:11px;color:var(--text-secondary)">延迟 <span style="color:var(--text-primary)">${latencyStr}</span></div>
         </div>
@@ -156,12 +182,113 @@ function emptyState() {
       <div style="font-size:32px;margin-bottom:12px">📭</div>
       <div style="font-size:14px;margin-bottom:8px">还没有任何 Provider</div>
       <div style="font-size:12px;color:var(--text-tertiary);max-width:480px;margin:0 auto;line-height:1.7">
-        直接在 D1 中插入 <code>providers</code> 表数据。<br>
-        参考 <code>migrations/seed-providers.sql.example</code>，<br>
-        或运行：<br>
-        <code style="background:var(--bg-elevated);padding:8px;display:inline-block;margin-top:8px;border-radius:4px">wrangler d1 execute losfurina-logs --command "INSERT INTO providers ..."</code>
+        点击下方按钮新建一个，或在右上角点 "+ 新建 Provider"。
       </div>
+      <button class="filter-chip" id="empty-new" style="margin-top:16px">+ 新建 Provider</button>
     </div>
+  `;
+}
+
+function openProviderForm(existing) {
+  const isEdit = !!existing;
+  const title = isEdit ? `编辑 Provider: ${existing.name}` : '新建 Provider';
+  const modelsStr = isEdit ? (existing.models || []).join(', ') : '';
+  const panel = openSidePanel({
+    title,
+    bodyHtml: providerFormHtml({ isEdit, existing, modelsStr }),
+  });
+
+  const form = panel.body.querySelector('#provider-form');
+  panel.body.querySelector('#f-cancel').onclick = panel.close;
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const errEl = panel.body.querySelector('#form-error');
+    errEl.textContent = '';
+    const submitBtn = panel.body.querySelector('#f-submit');
+    submitBtn.disabled = true;
+
+    const payload = {
+      name: panel.body.querySelector('#f-name').value.trim(),
+      base_url: panel.body.querySelector('#f-base-url').value.trim(),
+      priority: parseInt(panel.body.querySelector('#f-priority').value, 10) || 100,
+      enabled: panel.body.querySelector('#f-enabled').checked,
+      models: panel.body.querySelector('#f-models').value,
+    };
+    const keyValue = panel.body.querySelector('#f-api-key').value.trim();
+    if (keyValue) payload.api_key = keyValue;
+    else if (!isEdit) payload.api_key = '';
+
+    try {
+      if (isEdit) {
+        await api(`/api/providers/${existing.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        showToast('已保存');
+      } else {
+        await api('/api/providers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        showToast('已创建');
+      }
+      panel.close();
+      await load();
+    } catch (err) {
+      errEl.textContent = err.message;
+      submitBtn.disabled = false;
+    }
+  };
+}
+
+function providerFormHtml({ isEdit, existing, modelsStr }) {
+  const inputStyle = 'width:100%;margin-top:4px;padding:6px 8px;background:var(--bg-elevated);border:1px solid var(--border-subtle);color:var(--text-primary);font-family:var(--font-mono);font-size:12px';
+  const keyLabel = isEdit
+    ? 'API Key <span style="color:var(--text-tertiary);font-weight:400">（留空则不修改，当前已设置）</span>'
+    : 'API Key <span style="color:var(--accent-red)">*</span>';
+  const keyPlaceholder = isEdit ? `${existing.api_key} (mask)` : 'sk-...';
+  return `
+    <form id="provider-form" style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <div class="label">Name <span style="color:var(--accent-red)">*</span></div>
+        <input id="f-name" type="text" required value="${escape(existing?.name || '')}" style="${inputStyle}">
+      </div>
+      <div>
+        <div class="label">Base URL <span style="color:var(--accent-red)">*</span></div>
+        <input id="f-base-url" type="url" required placeholder="https://api.deepseek.com" value="${escape(existing?.base_url || '')}" style="${inputStyle}">
+      </div>
+      <div>
+        <div class="label">${keyLabel}</div>
+        <input id="f-api-key" type="password" ${isEdit ? '' : 'required'} placeholder="${keyPlaceholder}" style="${inputStyle}">
+        <div style="font-size:10px;color:var(--text-tertiary);margin-top:4px">永远不会回显已存储的明文 key</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <div class="label">Priority</div>
+          <input id="f-priority" type="number" min="0" value="${existing?.priority ?? 100}" style="${inputStyle.replace('font-family:var(--font-mono);', '')}">
+        </div>
+        <div>
+          <div class="label">Enabled</div>
+          <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px">
+            <input id="f-enabled" type="checkbox" ${existing == null || existing.enabled ? 'checked' : ''}>
+            <span>启用</span>
+          </label>
+        </div>
+      </div>
+      <div>
+        <div class="label">Models <span style="color:var(--text-tertiary);font-weight:400">（逗号分隔）</span></div>
+        <textarea id="f-models" rows="3" placeholder="deepseek-chat, deepseek-reasoner" style="${inputStyle};resize:vertical">${escape(modelsStr)}</textarea>
+        <div style="font-size:10px;color:var(--text-tertiary);margin-top:4px">手动列出 provider 支持的模型；下次健康探测会更新 model_map</div>
+      </div>
+      <div id="form-error" style="font-size:11px;color:var(--accent-red);min-height:14px"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+        <button type="button" class="filter-chip" id="f-cancel">取消</button>
+        <button type="submit" class="filter-chip" style="background:var(--accent-blue);color:white;border-color:var(--accent-blue)" id="f-submit">${isEdit ? '保存' : '创建'}</button>
+      </div>
+    </form>
   `;
 }
 
